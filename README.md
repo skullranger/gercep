@@ -22,10 +22,11 @@ Aplikasi harus dibuka lewat **HTTPS** agar GPS, mode offline, dan install berfun
 3. Buka aplikasi → menu **Data** → pilih file paket `.gz` dari kantor.
 
 ## Alur update data (di kantor)
-1. Export DIL ke CSV/TXT. Baris pertama harus berisi judul kolom (IDPEL, NAMA, ALAMAT, NOBANG, KETNOBANG, RT, RW, NAMA_KELURAHAN, NAMA_KECAMATAN, TARIF, DAYA, JENISLAYANAN, KOORDINAT_X, KOORDINAT_Y, KET_KDPEMBMETER, STATUS_DIL). Kolom wajib: IDPEL, KOORDINAT_X, KOORDINAT_Y.
+1. Siapkan file DIL dalam format **Excel (.xlsx)** atau CSV/TXT. Harus ada baris judul kolom (baris kop di atasnya boleh) (IDPEL, NAMA, ALAMAT, NOBANG, KETNOBANG, RT, RW, NAMA_KELURAHAN, NAMA_KECAMATAN, TARIF, DAYA, JENISLAYANAN, KOORDINAT_X, KOORDINAT_Y, KET_KDPEMBMETER, STATUS_DIL). Kolom wajib: IDPEL, KOORDINAT_X, KOORDINAT_Y.
    - Pemisah boleh Tab, titik koma, atau koma.
-   - Pastikan kolom IDPEL berformat **Text**. Excel kadang mengubah IDPEL menjadi format ilmiah seperti 5,43603E+11. Baris seperti itu akan ditolak dan dihitung di ringkasan.
-2. Di laptop kantor, buka aplikasi → **Data** → isi *Tanggal data* → pilih file CSV.
+   - Paling aman pakai .xlsx langsung (data diambil dari sheet pertama). Kalau pakai CSV, pastikan kolom IDPEL berformat **Text**, karena Excel bisa mengubahnya menjadi 5,43603E+11 (baris seperti itu ditolak dan dihitung di ringkasan).
+   - Uji: file Excel 41 MB / 498.610 baris selesai diimpor ±9 detik di laptop, paket hasilnya ±9,5 MB.
+2. Di laptop kantor, buka https://skullranger.github.io/gercep/ → **Data** → isi *Tanggal data* → pilih file Excel/CSV.
 3. Periksa ringkasan impor (jumlah valid, duplikat, tikor kosong, luar wilayah). Ringkasan ini tidak berisi data pelanggan.
 4. Klik **Unduh paket data (.gz)**. Ukurannya sekitar 10 MB untuk ±500 ribu pelanggan.
 5. Bagikan file .gz ke petugas lewat jalur internal yang aman, lalu petugas mengimpornya di menu Data.

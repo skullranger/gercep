@@ -139,9 +139,9 @@ nav button.active{color:var(--accent);font-weight:600}
     <div class="panel"><h3>Data di HP ini</h3><div id="dataStat"></div></div>
     <div class="panel">
       <h3>Update data</h3>
-      <p class="muted small">Pilih <b>paket .gz</b> dari kantor, atau file DIL <b>.csv / .txt</b> (pemisah Tab, titik koma, atau koma; baris pertama berisi judul kolom seperti IDPEL, NAMA, KOORDINAT_X, KOORDINAT_Y).</p>
-      <label>Tanggal data (dipakai saat impor CSV)<input type="date" id="dataDate"></label>
-      <input type="file" id="fileIn" accept=".gz,.csv,.txt,.tsv">
+      <p class="muted small">Pilih <b>paket .gz</b> dari kantor, atau file DIL <b>Excel (.xlsx)</b> / <b>.csv / .txt</b>. Wajib ada baris judul kolom IDPEL, KOORDINAT_X, KOORDINAT_Y (kolom lain seperti NAMA, ALAMAT opsional). Data diambil dari sheet pertama.</p>
+      <label>Tanggal data (dipakai saat impor Excel/CSV)<input type="date" id="dataDate"></label>
+      <input type="file" id="fileIn" accept=".gz,.xlsx,.csv,.txt,.tsv">
       <div id="impRep"></div>
       <div class="row"><button id="btnDl" class="btn">⬇ Unduh paket data (.gz) untuk dibagikan</button></div>
       <p class="muted small" id="dlNote"></p>
@@ -479,7 +479,7 @@ function showTab(t){
 }
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{showTab(b.dataset.tab);scrollTo(0,0)}));
 
-/* ===== Impor CSV DIL ===== */
+/* ===== Impor DIL (Excel .xlsx / CSV / TXT) ===== */
 function splitLine(line,d){
   if(d==='\t'||line.indexOf('"')<0)return line.split(d);
   const out=[];let cur='',q=false;
@@ -488,8 +488,8 @@ function splitLine(line,d){
     else if(c==='"')q=true;else if(c===d){out.push(cur);cur=''}else cur+=c}
   out.push(cur);return out;
 }
-const clean=s=>(s||'').replace(/[|\r\n\t]/g,' ').replace(/\s+/g,' ').trim().toUpperCase();
-function num(s){s=(s||'').trim();if(!s)return NaN;if(s.indexOf(',')>=0&&s.indexOf('.')<0)s=s.replace(',','.');return Number(s)}
+const clean=s=>String(s??'').replace(/[|\r\n\t]/g,' ').replace(/\s+/g,' ').trim().toUpperCase();
+function num(s){s=String(s??'').trim();if(!s)return NaN;if(s.indexOf(',')>=0&&s.indexOf('.')<0)s=s.replace(',','.');return Number(s)}
 function parseCoord(x,y){
   const a=num(x),b=num(y);
   if(!isFinite(a)||!isFinite(b)||(a===0&&b===0))return null;
@@ -497,34 +497,108 @@ function parseCoord(x,y){
   if(Math.abs(b)<=15&&a>=90&&a<=145)return[b,a];   // tertukar
   return null;
 }
-async function importCSV(file,dataDate){
-  const t0=performance.now();
-  overlay('Membaca file CSV…');await paint();
+/* -- CSV/TXT: baris demi baris -- */
+async function* csvRows(file){
   let text=await file.text();if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
-  const nl=text.indexOf('\n');const headLine=text.slice(0,nl<0?text.length:nl).replace(/\r$/,'');
-  const delim=['\t',';',','].map(d=>[d,headLine.split(d).length]).sort((a,b)=>b[1]-a[1])[0][0];
-  const head=splitLine(headLine,delim).map(h=>h.trim().replace(/^"|"$/g,'').toUpperCase());
-  const col=n=>head.indexOf(n);
-  const C={idpel:col('IDPEL'),nama:col('NAMA'),alamat:col('ALAMAT'),nobang:col('NOBANG'),ketnobang:col('KETNOBANG'),rt:col('RT'),rw:col('RW'),
-    kel:col('NAMA_KELURAHAN'),kec:col('NAMA_KECAMATAN'),tarif:col('TARIF'),daya:col('DAYA'),layanan:col('JENISLAYANAN'),
-    x:col('KOORDINAT_X'),y:col('KOORDINAT_Y'),meter:col('KET_KDPEMBMETER'),status:col('STATUS_DIL')};
-  const miss=['IDPEL','KOORDINAT_X','KOORDINAT_Y'].filter((n,k)=>[C.idpel,C.x,C.y][k]<0);
-  if(miss.length)throw new Error('Kolom wajib tidak ada: '+miss.join(', ')+'. Pastikan baris pertama berisi judul kolom DIL.');
-  const g=(f,k)=>k<0?'':f[k];
-  const st={rows:0,ok:0,badId:0,sci:0,dup:0,noTikor:0,out:0};
-  const seen=new Set(),lines=[];
-  let p=nl+1;
+  let delim=null,p=0;
   while(p<text.length){
     let q=text.indexOf('\n',p);if(q<0)q=text.length;
     let line=text.slice(p,q);p=q+1;
     if(line.endsWith('\r'))line=line.slice(0,-1);
     if(!line.trim())continue;
+    if(!delim)delim=['\t',';',','].map(d=>[d,line.split(d).length]).sort((a,b)=>b[1]-a[1])[0][0];
+    yield splitLine(line,delim).map(v=>v.replace(/^"|"$/g,''));
+  }
+}
+/* -- XLSX: dibaca langsung (zip + XML) tanpa library, per potongan agar hemat memori -- */
+function unxml(s){return s.indexOf('&')<0?s:s.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi,(m,e)=>{e=e.toLowerCase();
+  return e==='amp'?'&':e==='lt'?'<':e==='gt'?'>':e==='quot'?'"':e==='apos'?"'":String.fromCodePoint(e[1]==='x'?parseInt(e.slice(2),16):+e.slice(1))})}
+function zipIndex(buf){
+  const dv=new DataView(buf),u8=new Uint8Array(buf),dec=new TextDecoder();
+  let e=buf.byteLength-22;while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;
+  if(e<0)throw new Error('File Excel tidak bisa dibaca (bukan .xlsx yang valid).');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const ent={};
+  for(let i=0;i<n;i++){
+    const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),off=dv.getUint32(p+42,true);
+    const name=dec.decode(u8.subarray(p+46,p+46+nl));ent[name]={method,csize,off};p+=46+nl+xl+cl;
+  }
+  return{get(name){const f=ent[name];if(!f)return null;
+    const s=f.off+30+dv.getUint16(f.off+26,true)+dv.getUint16(f.off+28,true);
+    const blob=new Blob([u8.subarray(s,s+f.csize)]);
+    return f.method===0?blob.stream():blob.stream().pipeThrough(new DecompressionStream('deflate-raw'))},
+    names:Object.keys(ent)};
+}
+const zipText=st=>new Response(st).text();
+function colIdx(r){let c=0;for(let i=0;i<r.length;i++){const k=r.charCodeAt(i);if(k<65||k>90)break;c=c*26+k-64}return c-1}
+async function* xlsxRows(file){
+  if(!('DecompressionStream' in window))throw new Error('Browser tidak mendukung baca Excel. Gunakan Chrome/Edge terbaru, atau simpan sebagai CSV.');
+  const z=zipIndex(await file.arrayBuffer());
+  // sheet pertama sesuai urutan di workbook
+  let sheet='xl/worksheets/sheet1.xml';
+  try{
+    const wb=await zipText(z.get('xl/workbook.xml')),rels=await zipText(z.get('xl/_rels/workbook.xml.rels'));
+    const rid=(/<sheet\b[^>]*\br:id="([^"]+)"/.exec(wb)||[])[1];
+    const tg=rid&&(new RegExp(`<Relationship\\b[^>]*Id="${rid}"[^>]*Target="([^"]+)"`).exec(rels)||new RegExp(`<Relationship\\b[^>]*Target="([^"]+)"[^>]*Id="${rid}"`).exec(rels)||[])[1];
+    if(tg)sheet=tg.startsWith('/')?tg.slice(1):'xl/'+tg.replace(/^\.\//,'');
+  }catch(e){}
+  if(!z.get(sheet))sheet=z.names.find(n=>/^xl\/worksheets\/[^/]+\.xml$/.test(n));
+  if(!sheet)throw new Error('Sheet tidak ditemukan di file Excel.');
+  const ss=[];const sst=z.get('xl/sharedStrings.xml');
+  if(sst){const x=await zipText(sst);const re=/<si>([\s\S]*?)<\/si>/g,rt=/<t[^>]*>([\s\S]*?)<\/t>/g;let m;
+    while((m=re.exec(x))){const inner=m[1].replace(/<rPh[\s\S]*?<\/rPh>/g,'');let s='',t;rt.lastIndex=0;while((t=rt.exec(inner)))s+=t[1];ss.push(unxml(s))}}
+  const reader=z.get(sheet).pipeThrough(new TextDecoderStream()).getReader();
+  const reRow=/<row\b[^>]*>([\s\S]*?)<\/row>/g,reC=/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+  let buf='';
+  for(;;){
+    const{value,done}=await reader.read();if(value)buf+=value;
+    const last=done?buf.length:buf.lastIndexOf('</row>')+6;
+    if(last>=6||done){
+      const chunk=buf.slice(0,last);buf=buf.slice(last);reRow.lastIndex=0;let m;
+      while((m=reRow.exec(chunk))){
+        const row=[];reC.lastIndex=0;let c,auto=0;
+        while((c=reC.exec(m[1]))){
+          const at=c[1],r=(/\br="([A-Z]+)/.exec(at)||[])[1],t=(/\bt="([^"]+)"/.exec(at)||[])[1],body=c[2]||'';
+          const ci=r?colIdx(r):auto;auto=ci+1;
+          let v='';
+          if(t==='inlineStr'){const tt=/<t[^>]*>([\s\S]*?)<\/t>/.exec(body);v=tt?unxml(tt[1]):''}
+          else{const vv=/<v>([\s\S]*?)<\/v>/.exec(body);if(vv){v=t==='s'?(ss[+vv[1]]??''):unxml(vv[1])}}
+          row[ci]=v;
+        }
+        for(let i=0;i<row.length;i++)if(row[i]===undefined)row[i]='';
+        yield row;
+      }
+    }
+    if(done)break;
+  }
+}
+async function importDIL(file,dataDate){
+  const t0=performance.now();
+  if(/\.xls$/i.test(file.name))throw new Error('Format .xls (Excel lama) belum didukung. Buka di Excel lalu Save As .xlsx.');
+  const h=new Uint8Array(await file.slice(0,2).arrayBuffer());
+  const isXlsx=h[0]===0x50&&h[1]===0x4b; // "PK" = zip
+  overlay(isXlsx?'Membuka file Excel…':'Membaca file CSV…');await paint();
+  const gen=isXlsx?xlsxRows(file):csvRows(file);
+  let C=null;
+  const st={rows:0,ok:0,badId:0,sci:0,dup:0,noTikor:0,out:0};
+  const seen=new Set(),lines=[];
+  const g=(f,k)=>k<0?'':(f[k]??'');
+  for await(const f of gen){
+    if(!C){ // cari baris judul (yang memuat kolom IDPEL)
+      const head=f.map(x=>String(x).trim().toUpperCase());
+      if(head.indexOf('IDPEL')<0)continue;
+      const col=n=>head.indexOf(n);
+      C={idpel:col('IDPEL'),nama:col('NAMA'),alamat:col('ALAMAT'),nobang:col('NOBANG'),ketnobang:col('KETNOBANG'),rt:col('RT'),rw:col('RW'),
+        kel:col('NAMA_KELURAHAN'),kec:col('NAMA_KECAMATAN'),tarif:col('TARIF'),daya:col('DAYA'),layanan:col('JENISLAYANAN'),
+        x:col('KOORDINAT_X'),y:col('KOORDINAT_Y'),meter:col('KET_KDPEMBMETER'),status:col('STATUS_DIL')};
+      if(C.x<0||C.y<0)throw new Error('Kolom KOORDINAT_X / KOORDINAT_Y tidak ditemukan di baris judul.');
+      continue;
+    }
+    if(!f.some(v=>String(v).trim()))continue;
     st.rows++;
     if(st.rows%25000===0){overlay(`Memproses ${fmtN(st.rows)} baris…`);await paint()}
-    const f=splitLine(line,delim);
-    const rawId=(g(f,C.idpel)||'').trim().replace(/^['"]|['"]$/g,'');
+    const rawId=String(g(f,C.idpel)).trim().replace(/^['"]|['"]$/g,'');
     if(/e\+/i.test(rawId)){st.sci++;st.badId++;continue}
-    const id=rawId.replace(/\D/g,'');
+    const id=rawId.replace(/\.0+$/,'').replace(/\D/g,'');
     if(id.length!==12){st.badId++;continue}
     if(seen.has(id)){st.dup++;continue}
     seen.add(id);
@@ -532,10 +606,10 @@ async function importCSV(file,dataDate){
     if(!c)st.noTikor++;else if(isOut(c[0],c[1]))st.out++;
     const nob=[clean(g(f,C.nobang)),clean(g(f,C.ketnobang))].filter(x=>x&&x!=='0').join(' ');
     lines.push([id,c?c[0].toFixed(6):'',c?c[1].toFixed(6):'',clean(g(f,C.nama)),clean(g(f,C.alamat)),nob,clean(g(f,C.rt)),clean(g(f,C.rw)),
-      clean(g(f,C.kel)),clean(g(f,C.kec)),clean(g(f,C.tarif)),clean(g(f,C.daya)).replace(/\D/g,''),clean(g(f,C.layanan)),clean(g(f,C.meter)),clean(g(f,C.status))].join('|'));
+      clean(g(f,C.kel)),clean(g(f,C.kec)),clean(g(f,C.tarif)),clean(g(f,C.daya)).replace(/\.0+$/,'').replace(/\D/g,''),clean(g(f,C.layanan)),clean(g(f,C.meter)),clean(g(f,C.status))].join('|'));
     st.ok++;
   }
-  text=null;
+  if(!C)throw new Error('Baris judul tidak ditemukan. Pastikan ada kolom IDPEL, KOORDINAT_X, KOORDINAT_Y.');
   if(!lines.length)throw new Error('Tidak ada baris valid yang bisa diimpor.');
   overlay('Mengurutkan & mengompres…');await paint();
   lines.sort(); // IDPEL 12 digit di awal baris → urut sesuai angka
@@ -573,7 +647,7 @@ $('fileIn').addEventListener('change',async e=>{
       await loadText(text);S.blob=new Blob([f],{type:'application/gzip'});await persist();
       $('impRep').innerHTML=`<p class="small" style="color:var(--ok)">✔ Paket dimuat: ${fmtN(S.n)} pelanggan, data ${esc(fmtDate(S.meta.date))}.</p>`;
     }else{
-      const st=await importCSV(f,$('dataDate').value||today());
+      const st=await importDIL(f,$('dataDate').value||today());
       $('impRep').innerHTML=repHTML(st);
       const b=$('copyRep');if(b)b.onclick=()=>copyText($('impRep').querySelector('pre').textContent);
     }

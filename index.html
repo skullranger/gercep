@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f1419">
+<title>GERCEP · Geolokasi Rumah Pelanggan Cepat</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#0f1419;--card:#18212b;--card2:#1f2a36;--line:#2b3846;--text:#e6edf3;--muted:#8b98a5;--accent:#1fa2e0;--accent-t:#04131c;--yellow:#ffd200;--danger:#f8665e;--ok:#3fb950;--warn:#e3a33b}
+html[data-theme=light]{--bg:#eef2f5;--card:#ffffff;--card2:#f3f6f9;--line:#d5dde5;--text:#16202a;--muted:#5d6b78;--accent:#0b85c0;--accent-t:#fff;--danger:#c93a32;--ok:#1d8a36;--warn:#a86a00}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:10px;padding:10px 14px}
+.brand{flex:1;min-width:0}
+.brand b{display:block;font-size:16px}
+.brand b span{color:var(--yellow)}
+.brand small{color:var(--muted);font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon{background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:10px;height:40px;min-width:40px;font-size:18px}
+#banner:empty{display:none}
+#banner div{padding:7px 14px;font-size:12.5px;border-top:1px solid var(--line)}
+#banner .info{background:rgba(31,162,224,.12)}
+#banner .warn{background:rgba(227,163,59,.15);color:var(--warn)}
+main{padding:12px 12px 90px;max-width:720px;margin:0 auto}
+.tab{display:none}.tab.active{display:block}
+.searchbox{display:flex;gap:8px;position:sticky;top:64px;z-index:4;background:var(--bg);padding:2px 0 10px}
+input,select,textarea{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);border-color:transparent}
+#q{font-size:18px;letter-spacing:.3px}
+.kb{min-width:58px;border-radius:12px;background:var(--card2);border:1px solid var(--line);color:var(--text);font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--text);font:inherit;font-size:14px;text-decoration:none;cursor:pointer;min-height:40px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-t);font-weight:600}
+.btn.danger{color:var(--danger);border-color:var(--danger);background:transparent}
+.btn.ghost{background:transparent}
+.btn.disabled{opacity:.4;pointer-events:none}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.row>input{flex:1;min-width:160px}
+.muted{color:var(--muted)}.small{font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
+.card.done{opacity:.5}
+.c-top{display:flex;align-items:center;gap:8px}
+.num{background:var(--yellow);color:#111;font-weight:700;border-radius:8px;padding:1px 7px;font-size:13px}
+.idpel{font:600 17px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.5px;cursor:pointer}
+.badge{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(63,185,80,.15);color:var(--ok)}
+.nama{font-weight:600;margin-top:4px}
+.alamat{margin-top:2px}
+.meta{color:var(--muted);font-size:13px;margin-top:2px}
+.koord{font-size:13px;margin-top:6px;color:var(--accent);font-family:ui-monospace,Menlo,Consolas,monospace}
+.koord.warn{color:var(--warn)}.koord.bad{color:var(--danger);font-family:inherit}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.acts .btn{flex:1 1 auto;min-width:64px}
+.hint{margin:4px 2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
+.chip{background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:6px 12px;font:13px ui-monospace,Menlo,Consolas,monospace;color:var(--text);cursor:pointer}
+.empty{text-align:center;color:var(--muted);padding:30px 10px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:10px 0}
+.panel h3{margin:0 0 8px;font-size:15px}
+table.kv{width:100%;border-collapse:collapse;font-size:14px}
+table.kv td{padding:5px 0;border-bottom:1px solid var(--line)}
+table.kv td:last-child{text-align:right;font-weight:600}
+label{display:block;margin:8px 0;font-size:13.5px;color:var(--muted)}
+label input{margin-top:4px}
+.err{color:var(--danger)}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);z-index:6}
+nav button{flex:1;background:none;border:0;color:var(--muted);padding:9px 0 11px;font:12px system-ui,sans-serif;cursor:pointer}
+nav button span{display:block;font-size:20px;line-height:1.2}
+nav button.active{color:var(--accent);font-weight:600}
+#toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:20px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:9;max-width:90%}
+#toast.show{opacity:1;transform:translateX(-50%)}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:10}
+#overlay.show{display:flex}
+#overlay .box{background:var(--card);border-radius:14px;padding:20px 24px;text-align:center;max-width:80%}
+.spin{width:34px;height:34px;border:4px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 10px;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><b><span>GERCEP</span> · Tikor Pelanggan UP3 Ciputat</b><small id="dataInfo">memuat data…</small></div>
+    <button id="btnGps" class="icon" title="Perbarui lokasi saya">📍</button>
+  </div>
+  <div id="banner"></div>
+</header>
+
+<main>
+  <!-- CARI -->
+  <section id="tab-cari" class="tab active">
+    <div class="searchbox">
+      <input id="q" type="search" inputmode="numeric" placeholder="IDPEL / nama / alamat" autocomplete="off" enterkeyhint="search">
+      <button id="kb" class="kb" title="Ganti keyboard">ABC</button>
+    </div>
+    <div id="hint" class="hint"></div>
+    <div id="res"></div>
+  </section>
+
+  <!-- DAFTAR -->
+  <section id="tab-daftar" class="tab">
+    <p class="muted small">Tempel banyak IDPEL sekaligus, misalnya dari APKT, daftar putus, atau bongkar rampung. Pemisahnya bebas (baris baru, koma, spasi).</p>
+    <textarea id="listIn" rows="5" placeholder="543602589120&#10;543602651306"></textarea>
+    <div class="row">
+      <button id="listGo" class="btn primary">Proses</button>
+      <button id="listSort" class="btn">Urutkan rute terdekat</button>
+    </div>
+    <div class="row">
+      <a id="listRoute" class="btn disabled" target="_blank" rel="noopener">🧭 Rute 4 titik berikutnya</a>
+      <button id="listCopy" class="btn">Salin daftar</button>
+      <button id="listClear" class="btn ghost">Kosongkan</button>
+    </div>
+    <div id="listSum"></div>
+    <div id="listRes"></div>
+  </section>
+
+  <!-- SEKITAR -->
+  <section id="tab-sekitar" class="tab">
+    <p class="muted small">Cari pelanggan di sekitar lokasi Anda, atau di sekitar pelanggan tertentu (tombol <b>Sekitar</b> pada hasil pencarian).</p>
+    <div class="row">
+      <button id="nearGps" class="btn primary">📍 Pakai lokasi saya</button>
+      <select id="nearR" style="width:auto">
+        <option value="100">Radius 100 m</option>
+        <option value="250" selected>Radius 250 m</option>
+        <option value="500">Radius 500 m</option>
+        <option value="1000">Radius 1 km</option>
+      </select>
+    </div>
+    <div class="row">
+      <input id="nearManual" placeholder="atau tikor manual: -6.3188, 106.7220" inputmode="decimal">
+      <button id="nearManualGo" class="btn">Cari</button>
+    </div>
+    <div id="nearSum" class="muted small"></div>
+    <div id="nearRes"></div>
+  </section>
+
+  <!-- DATA -->
+  <section id="tab-data" class="tab">
+    <div class="panel"><h3>Data di HP ini</h3><div id="dataStat"></div></div>
+    <div class="panel">
+      <h3>Update data</h3>
+      <p class="muted small">Pilih <b>paket .gz</b> dari kantor, atau file DIL <b>.csv / .txt</b> (pemisah Tab, titik koma, atau koma; baris pertama berisi judul kolom seperti IDPEL, NAMA, KOORDINAT_X, KOORDINAT_Y).</p>
+      <label>Tanggal data (dipakai saat impor CSV)<input type="date" id="dataDate"></label>
+      <input type="file" id="fileIn" accept=".gz,.csv,.txt,.tsv">
+      <div id="impRep"></div>
+      <div class="row"><button id="btnDl" class="btn">⬇ Unduh paket data (.gz) untuk dibagikan</button></div>
+      <p class="muted small" id="dlNote"></p>
+    </div>
+    <div class="panel">
+      <h3>Uji coba</h3>
+      <p class="muted small">Data dummy acak untuk mengukur kecepatan. Bukan data pelanggan.</p>
+      <div class="row">
+        <button id="btnDummy" class="btn">Buat dummy 498.610 baris</button>
+        <button id="btnDummySmall" class="btn ghost">Demo kecil (3.000)</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Tampilan</h3>
+      <select id="theme"><option value="dark">Gelap</option><option value="light">Terang</option><option value="system">Ikuti sistem</option></select>
+    </div>
+    <div class="panel">
+      <h3>Hapus data</h3>
+      <div class="row"><button id="btnDel" class="btn danger">Hapus data dari HP ini</button></div>
+    </div>
+    <p class="muted small" style="text-align:center"><b>GERCEP</b> · Geolokasi Rumah Pelanggan Cepat<br>Prototipe v0.1 · data tersimpan hanya di perangkat ini</p>
+  </section>
+</main>
+
+<nav>
+  <button data-tab="cari" class="active"><span>🔎</span>Cari</button>
+  <button data-tab="daftar"><span>📋</span>Daftar</button>
+  <button data-tab="sekitar"><span>🎯</span>Sekitar</button>
+  <button data-tab="data"><span>🗂️</span>Data</button>
+</nav>
+<div id="toast"></div>
+<div id="overlay"><div class="box"><div class="spin"></div><div id="ovMsg"></div></div></div>
+
+<script>
+'use strict';
+/* ===== Konfigurasi ===== */
+const BBOX = {latMin:-6.50, latMax:-6.20, lngMin:106.60, lngMax:106.85}; // perkiraan wilayah UP3 Ciputat, sesuaikan
+const STALE_DAYS = 60;           // peringatan bila data lebih tua dari ini
+const DEMO_N = 3000, FULL_N = 498610;
+const NONE = -2147483648;
+const F = ['idpel','lat','lng','nama','alamat','nobang','rt','rw','kel','kec','tarif','daya','layanan','meter','status'];
+const IN_PREVIEW = (()=>{try{return window.self!==window.top}catch(e){return true}})();
+
+const S = {text:'',n:0,starts:null,idp:null,lat:null,lng:null,order:null,meta:null,blob:null,stored:false,
+           pos:null,stat:null,loadMs:0,listIds:[],done:{},nearCenter:null};
+
+/* ===== Util ===== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const paint = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+const tick = () => new Promise(r => setTimeout(r, 0));
+const fmtN = n => Number(n).toLocaleString('id-ID');
+const ls = {
+  get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+function fmtDate(s){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s||'');return m?`${+m[3]} ${BLN[+m[2]-1]} ${m[1]}`:(s||'-')}
+function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2400)}
+function overlay(m){const o=$('overlay');if(m==null){o.classList.remove('show');return}$('ovMsg').textContent=m;o.classList.add('show')}
+function dist(la1,lo1,la2,lo2){const x=(lo2-lo1)*Math.cos((la1+la2)*Math.PI/360)*111320,y=(la2-la1)*110574;return Math.sqrt(x*x+y*y)}
+function fmtDist(m){return m<1000?`${Math.round(m)} m`:`${(m/1000).toFixed(1).replace('.',',')} km`}
+function isOut(la,lo){return la<BBOX.latMin||la>BBOX.latMax||lo<BBOX.lngMin||lo>BBOX.lngMax}
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t);toast('Disalin');return}catch(e){}
+  const ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();
+  let ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();toast(ok?'Disalin':'Gagal menyalin')
+}
+
+/* ===== Penyimpanan (IndexedDB) ===== */
+function idb(){return new Promise((res,rej)=>{try{const r=indexedDB.open('tikor-dil',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})}
+async function kv(mode,fn){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('kv',mode);const rq=fn(tx.objectStore('kv'));tx.oncomplete=()=>res(rq&&rq.result);tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)})}
+const kvGet=k=>kv('readonly',s=>s.get(k));
+const kvSet=(k,v)=>kv('readwrite',s=>s.put(v,k));
+const kvDel=k=>kv('readwrite',s=>s.delete(k));
+async function persist(){
+  try{await kvSet('pkg',{blob:S.blob,savedAt:Date.now()});S.stored=true;try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}
+  catch(e){S.stored=false}
+}
+
+/* ===== Kompresi ===== */
+async function gzip(text){
+  if(!('CompressionStream' in window))return new Blob([text],{type:'text/plain'});
+  const b=await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).blob();
+  return new Blob([b],{type:'application/gzip'});
+}
+async function isGz(blob){const h=new Uint8Array(await blob.slice(0,2).arrayBuffer());return h[0]===0x1f&&h[1]===0x8b}
+async function unpack(blob){
+  if(await isGz(blob)){
+    if(!('DecompressionStream' in window))throw new Error('Browser tidak mendukung file .gz. Gunakan Chrome versi terbaru.');
+    return await new Response(blob.stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  }
+  return await blob.text();
+}
+
+/* ===== Index =====
+   Format paket: baris 1 "#TIKORDIL|versi|tanggal|jumlah|sumber", lalu 1 baris per pelanggan:
+   IDPEL|LAT|LNG|NAMA|ALAMAT|NOBANG|RT|RW|KELURAHAN|KECAMATAN|TARIF|DAYA|JENISLAYANAN|METER|STATUS */
+function buildIndex(text){
+  const h=text.indexOf('\n');const head=text.slice(0,h).replace(/\r$/,'').split('|');
+  if(head[0]!=='#TIKORDIL')throw new Error('Format paket tidak dikenal');
+  let n=0;for(let p=h+1;;){const q=text.indexOf('\n',p);if(q<0)break;n++;p=q+1}
+  const starts=new Uint32Array(n+1),idp=new Float64Array(n),lat=new Int32Array(n),lng=new Int32Array(n);
+  let p=h+1,sorted=true,prev=-1;
+  for(let i=0;i<n;i++){
+    const q=text.indexOf('\n',p);starts[i]=p;
+    const a=text.indexOf('|',p),b=text.indexOf('|',a+1),c=text.indexOf('|',b+1);
+    const id=+text.slice(p,a);idp[i]=id;if(id<prev)sorted=false;prev=id;
+    if(c>b+1&&b>a+1){lat[i]=Math.round(+text.slice(a+1,b)*1e6);lng[i]=Math.round(+text.slice(b+1,c)*1e6)}else{lat[i]=NONE;lng[i]=NONE}
+    p=q+1;
+  }
+  starts[n]=p;
+  let order=null;
+  if(!sorted){order=new Uint32Array(n);for(let i=0;i<n;i++)order[i]=i;order.sort((x,y)=>idp[x]-idp[y])}
+  return {n,starts,idp,lat,lng,order,meta:{ver:head[1],date:head[2],count:+head[3]||n,source:head[4]||''}};
+}
+async function loadText(text){
+  if(!text.endsWith('\n'))text+='\n';
+  const t0=performance.now();
+  Object.assign(S,buildIndex(text));S.text=text;
+  let none=0,out=0;
+  for(let i=0;i<S.n;i++){const a=S.lat[i];if(a===NONE){none++;continue}if(isOut(a/1e6,S.lng[i]/1e6))out++}
+  S.stat={none,out,valid:S.n-none-out};
+  S.loadMs=performance.now()-t0;
+}
+const idAt=k=>S.order?S.idp[S.order[k]]:S.idp[k];
+const rowAt=k=>S.order?S.order[k]:k;
+function lowerBound(v){let lo=0,hi=S.n;while(lo<hi){const m=(lo+hi)>>>1;if(idAt(m)<v)lo=m+1;else hi=m}return lo}
+function findExact(id){const k=lowerBound(id);return k<S.n&&idAt(k)===id?rowAt(k):-1}
+function rowOfPos(pos){let lo=0,hi=S.n-1;while(lo<hi){const m=(lo+hi+1)>>>1;if(S.starts[m]<=pos)lo=m;else hi=m-1}return lo}
+const lineOf=i=>S.text.slice(S.starts[i],S.starts[i+1]-1);
+function getRow(i){
+  const s=lineOf(i).split('|');const o={i};F.forEach((f,j)=>o[f]=s[j]||'');
+  o.la=S.lat[i]===NONE?null:S.lat[i]/1e6;o.lo=S.lng[i]===NONE?null:S.lng[i]/1e6;return o;
+}
+
+/* ===== Pencarian ===== */
+function doSearch(q){
+  q=q.trim();if(!q)return{mode:'empty',rows:[]};
+  const digits=q.replace(/[\s.\-]/g,'');
+  if(/^\d+$/.test(digits)){
+    if(digits.length===12){const i=findExact(+digits);return{mode:'exact',rows:i>=0?[i]:[]}}
+    if(digits.length>12)return{mode:'msg',rows:[],msg:'IDPEL terdiri dari 12 digit.'};
+    if(digits.length<4)return{mode:'msg',rows:[],msg:'Ketik minimal 4 digit IDPEL (awal atau akhir), atau 12 digit lengkap.'};
+    const L=digits.length,v=+digits,mul=10**(12-L),rows=[],seen=new Set();
+    for(let k=lowerBound(v*mul),e=lowerBound((v+1)*mul);k<e&&rows.length<30;k++){const i=rowAt(k);rows.push(i);seen.add(i)}
+    const mod=10**L;let suf=0;
+    for(let i=0;i<S.n&&suf<30;i++){if(S.idp[i]%mod===v&&!seen.has(i)){rows.push(i);suf++}}
+    return{mode:'partial',rows,msg:`${rows.length}${rows.length>=30?'+':''} IDPEL berawalan/berakhiran ${digits}`};
+  }
+  if(q.length<3)return{mode:'msg',rows:[],msg:'Ketik minimal 3 huruf untuk mencari nama/alamat.'};
+  const words=q.toUpperCase().split(/\s+/).filter(Boolean);
+  const key=words.reduce((a,b)=>b.length>a.length?b:a);
+  const rows=[],LIM=60;let p=S.starts[0];
+  while(rows.length<LIM){
+    const f=S.text.indexOf(key,p);if(f<0)break;
+    const i=rowOfPos(f);const line=lineOf(i);
+    if(words.every(w=>line.includes(w)))rows.push(i);
+    p=S.starts[i+1];
+  }
+  return{mode:'text',rows,msg:rows.length>=LIM?`Ditampilkan ${LIM} hasil pertama. Tambah kata kunci (mis. kelurahan) agar lebih spesifik.`:`${rows.length} hasil nama/alamat`};
+}
+
+/* ===== Tampilan kartu ===== */
+function addr(o){
+  let a=o.alamat;if(o.nobang&&o.nobang!=='0')a+=' NO. '+o.nobang;
+  const rt=o.rt&&o.rt!=='0'?o.rt:'',rw=o.rw&&o.rw!=='0'?o.rw:'';
+  const pad=x=>/^\d+$/.test(x)?x.padStart(3,'0'):x;
+  if(rt||rw)a+=`, RT ${pad(rt)||'-'}/RW ${pad(rw)||'-'}`;
+  if(o.kel)a+=', '+o.kel;if(o.kec)a+=', KEC. '+o.kec;return a;
+}
+const ll=o=>`${o.la.toFixed(6)},${o.lo.toFixed(6)}`;
+const navUrl=o=>`https://www.google.com/maps/dir/?api=1&destination=${ll(o)}`;
+const mapUrl=o=>`https://www.google.com/maps/search/?api=1&query=${ll(o)}`;
+function shareText(o){
+  const daya=o.daya?fmtN(+o.daya)+' VA':'-';
+  return `IDPEL : ${o.idpel}\nNama  : ${o.nama}\nAlamat: ${addr(o)}\nTarif/Daya: ${o.tarif||'-'} / ${daya}\n`+
+    (o.la!=null?`Tikor : ${o.la.toFixed(6)}, ${o.lo.toFixed(6)}\nPeta  : https://maps.google.com/?q=${ll(o)}`:'Tikor : (kosong)');
+}
+function card(i,opt={}){
+  const o=getRow(i),has=o.la!=null,out=has&&isOut(o.la,o.lo);
+  const from=opt.from||S.pos;
+  const d=has&&from?' · '+fmtDist(dist(from.la,from.lo,o.la,o.lo))+(opt.from?'':' dari Anda'):'';
+  const daya=o.daya?fmtN(+o.daya)+' VA':'';
+  const meta=[o.tarif,daya,o.layanan,o.meter].filter(Boolean).join(' · ');
+  return `<div class="card${opt.done?' done':''}">
+  <div class="c-top">${opt.num?`<span class="num">${opt.num}</span>`:''}<span class="idpel" data-act="copyid" data-v="${esc(o.idpel)}" title="Salin IDPEL">${esc(o.idpel)}</span><span class="badge">${esc(o.status)}</span></div>
+  <div class="nama">${esc(o.nama)}</div>
+  <div class="alamat">${esc(addr(o))}</div>
+  <div class="meta">${esc(meta)}</div>
+  ${has?`<div class="koord${out?' warn':''}">📌 ${o.la.toFixed(6)}, ${o.lo.toFixed(6)}${d}${out?' · ⚠ di luar wilayah UP3':''}</div>`:'<div class="koord bad">⚠ Tikor kosong / tidak valid. Cari lewat alamat atau pelanggan sekitar.</div>'}
+  <div class="acts">
+    ${has?`<a class="btn primary" href="${navUrl(o)}" target="_blank" rel="noopener">🧭 Navigasi</a><a class="btn" href="${mapUrl(o)}" target="_blank" rel="noopener">Peta</a>`:''}
+    <button class="btn" data-act="copy" data-i="${i}">Salin</button>
+    <a class="btn" href="https://wa.me/?text=${encodeURIComponent(shareText(o))}" target="_blank" rel="noopener">WA</a>
+    ${has?`<button class="btn" data-act="near" data-i="${i}">Sekitar</button>`:''}
+    ${opt.num?`<button class="btn" data-act="done" data-v="${esc(o.idpel)}">${opt.done?'↩ Batal':'✔ Selesai'}</button>`:''}
+  </div></div>`;
+}
+
+/* ===== Tab CARI ===== */
+let hist=ls.get('tikor_hist',[]);
+function addHist(id){hist=[id,...hist.filter(x=>x!==id)].slice(0,12);ls.set('tikor_hist',hist)}
+function showHint(){
+  let h='';
+  if(hist.length)h+=`<div class="muted small">Terakhir dicari</div><div class="chips">${hist.map(x=>`<button class="chip" data-act="fill" data-v="${x}">${x}</button>`).join('')}</div>`;
+  if(S.meta&&S.meta.source==='DUMMY'&&S.n){
+    const ex=[0,Math.floor(S.n/2),S.n-1].map(k=>String(idAt(k)));
+    h+=`<div class="muted small">Contoh IDPEL dummy untuk dicoba</div><div class="chips">${ex.map(x=>`<button class="chip" data-act="fill" data-v="${x}">${x}</button>`).join('')}<button class="chip" data-act="fill" data-v="${ex[1].slice(-5)}">…${ex[1].slice(-5)}</button><button class="chip" data-act="fill" data-v="LESTARI SERUA">LESTARI SERUA</button></div>`;
+  }
+  h+='<div class="muted small">Tips: ketik 12 digit IDPEL untuk hasil instan, atau 4+ digit terakhir bila IDPEL tidak lengkap. Tombol ABC untuk cari nama/alamat.</div>';
+  $('hint').innerHTML=h;
+}
+function runSearch(){
+  if(!S.n)return;
+  const q=$('q').value,t0=performance.now(),r=doSearch(q),ms=performance.now()-t0;
+  if(r.mode==='empty'){$('res').innerHTML='';showHint();return}
+  $('hint').innerHTML=r.msg?`<div class="muted small">${esc(r.msg)}${r.rows.length?` · ${ms.toFixed(0)} ms`:''}</div>`:(r.rows.length?`<div class="muted small">Ditemukan · ${ms.toFixed(1)} ms</div>`:'');
+  if(r.mode==='exact'&&r.rows.length)addHist(q.replace(/\D/g,''));
+  $('res').innerHTML=r.rows.length?r.rows.map(i=>card(i)).join(''):(r.mode==='msg'?'':`<div class="empty">Tidak ditemukan di data ${esc(fmtDate(S.meta.date))}.<br>Periksa kembali IDPEL, atau data perlu di-update.</div>`);
+}
+let qTimer;
+$('q').addEventListener('input',()=>{clearTimeout(qTimer);const v=$('q').value.replace(/\D/g,'');qTimer=setTimeout(runSearch,v.length===12?0:220)});
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter'){clearTimeout(qTimer);runSearch();$('q').blur()}});
+$('kb').addEventListener('click',()=>{const q=$('q');const num=q.inputMode==='numeric';q.inputMode=num?'text':'numeric';$('kb').textContent=num?'123':'ABC';q.blur();setTimeout(()=>q.focus(),50)});
+
+/* ===== GPS ===== */
+function getPos(){
+  return new Promise((res,rej)=>{
+    if(!navigator.geolocation)return rej(new Error('GPS tidak didukung'));
+    navigator.geolocation.getCurrentPosition(p=>{S.pos={la:p.coords.latitude,lo:p.coords.longitude,acc:p.coords.accuracy};res(S.pos)},rej,{enableHighAccuracy:true,timeout:10000,maximumAge:30000});
+  });
+}
+function gpsErr(e){
+  if(IN_PREVIEW)return 'GPS diblokir di pratinjau Claude. Akan berfungsi setelah aplikasi dipasang di HP.';
+  if(e&&e.code===1)return 'Izin lokasi ditolak. Aktifkan izin lokasi untuk aplikasi ini.';
+  return 'Lokasi belum didapat. Pastikan GPS aktif lalu coba lagi.';
+}
+$('btnGps').addEventListener('click',async()=>{
+  toast('Mencari lokasi…');
+  try{const p=await getPos();toast(`Lokasi diperbarui (±${Math.round(p.acc)} m)`);runSearch();renderList()}catch(e){toast(gpsErr(e))}
+});
+
+/* ===== Tab DAFTAR ===== */
+{const L=ls.get('tikor_list',{ids:[],done:{}});S.listIds=L.ids||[];S.done=L.done||{}}
+const saveList=()=>ls.set('tikor_list',{ids:S.listIds,done:S.done});
+function renderList(){
+  if(!S.n)return;
+  const rows=S.listIds.map(id=>({id,i:findExact(+id)}));
+  const found=rows.filter(r=>r.i>=0),miss=rows.filter(r=>r.i<0);
+  if(!rows.length){$('listSum').innerHTML='';$('listRes').innerHTML='';$('listRoute').classList.add('disabled');return}
+  const noT=found.filter(r=>S.lat[r.i]===NONE).length,doneN=found.filter(r=>S.done[r.id]).length;
+  $('listSum').innerHTML=`<div class="panel small"><b>${found.length}</b> ditemukan dari ${rows.length} IDPEL · ${noT} tanpa tikor · <b>${doneN}</b> selesai`+
+    (miss.length?`<div class="err" style="margin-top:4px">Tidak ditemukan: ${miss.map(r=>r.id).join(', ')}</div>`:'')+'</div>';
+  let k=0;$('listRes').innerHTML=found.map(r=>card(r.i,{num:++k,done:!!S.done[r.id]})).join('');
+  const next=found.filter(r=>!S.done[r.id]&&S.lat[r.i]!==NONE).slice(0,4).map(r=>getRow(r.i));
+  const a=$('listRoute');
+  if(next.length){
+    const dest=next[next.length-1],wp=next.slice(0,-1).map(ll).join('|');
+    a.href=`https://www.google.com/maps/dir/?api=1&destination=${ll(dest)}`+(wp?`&waypoints=${encodeURIComponent(wp)}`:'');
+    a.classList.remove('disabled');
+  }else{a.removeAttribute('href');a.classList.add('disabled')}
+}
+$('listGo').addEventListener('click',()=>{
+  const ids=[...new Set($('listIn').value.match(/\d{12}/g)||[])];
+  if(!ids.length){toast('Tidak ada IDPEL 12 digit');return}
+  S.listIds=ids;S.done={};saveList();renderList();toast(`${ids.length} IDPEL diproses`);
+});
+$('listSort').addEventListener('click',async()=>{
+  if(!S.listIds.length)return;
+  toast('Mencari lokasi…');let usedGps=true;
+  try{await getPos()}catch(e){usedGps=false}
+  const rows=S.listIds.map(id=>({id,i:findExact(+id)}));
+  const pts=rows.filter(r=>r.i>=0&&S.lat[r.i]!==NONE),rest=rows.filter(r=>!(r.i>=0&&S.lat[r.i]!==NONE));
+  const P=r=>({la:S.lat[r.i]/1e6,lo:S.lng[r.i]/1e6});
+  const out=[];let cur=usedGps&&S.pos?S.pos:null;
+  if(!cur&&pts.length){const f=pts.shift();out.push(f);cur=P(f)}
+  while(pts.length){let b=0,bd=Infinity;pts.forEach((r,k)=>{const p=P(r),d=dist(cur.la,cur.lo,p.la,p.lo);if(d<bd){bd=d;b=k}});const r=pts.splice(b,1)[0];out.push(r);cur=P(r)}
+  S.listIds=out.concat(rest).map(r=>r.id);saveList();renderList();
+  toast(usedGps?'Diurutkan dari lokasi Anda':'GPS tidak tersedia, diurutkan dari titik pertama');
+});
+$('listCopy').addEventListener('click',()=>{
+  const rows=S.listIds.map(id=>findExact(+id)).filter(i=>i>=0);
+  if(!rows.length)return toast('Daftar kosong');
+  copyText(rows.map((i,k)=>{const o=getRow(i);return `${k+1}. ${o.idpel} - ${o.nama} - ${addr(o)}`+(o.la!=null?` - https://maps.google.com/?q=${ll(o)}`:' - (tikor kosong)')}).join('\n'));
+});
+$('listClear').addEventListener('click',()=>{S.listIds=[];S.done={};saveList();$('listIn').value='';renderList()});
+
+/* ===== Tab SEKITAR ===== */
+function nearby(la,lo,radius,limit){
+  const L=Math.round(la*1e6),G=Math.round(lo*1e6);
+  const dLat=Math.ceil(radius/110574*1e6),dLng=Math.ceil(radius/(111320*Math.cos(la*Math.PI/180))*1e6);
+  const out=[];
+  for(let i=0;i<S.n;i++){
+    const a=S.lat[i];if(a===NONE||a<L-dLat||a>L+dLat)continue;
+    const g=S.lng[i];if(g<G-dLng||g>G+dLng)continue;
+    const d=dist(la,lo,a/1e6,g/1e6);if(d<=radius)out.push([d,i]);
+  }
+  out.sort((x,y)=>x[0]-y[0]);return{total:out.length,rows:out.slice(0,limit)};
+}
+function runNear(){
+  const c=S.nearCenter;if(!c||!S.n)return;
+  const r=+$('nearR').value,t0=performance.now(),res=nearby(c.la,c.lo,r,50),ms=performance.now()-t0;
+  $('nearSum').textContent=`${res.total} pelanggan dalam radius ${r>=1000?r/1000+' km':r+' m'} dari ${c.label}${res.total>50?' (50 terdekat ditampilkan)':''} · ${ms.toFixed(0)} ms`;
+  $('nearRes').innerHTML=res.rows.map(([d,i])=>card(i,{from:c})).join('')||'<div class="empty">Tidak ada pelanggan dalam radius ini.</div>';
+}
+$('nearR').addEventListener('change',runNear);
+$('nearGps').addEventListener('click',async()=>{
+  toast('Mencari lokasi…');
+  try{const p=await getPos();S.nearCenter={la:p.la,lo:p.lo,label:`lokasi Anda (±${Math.round(p.acc)} m)`};runNear()}catch(e){$('nearSum').textContent=gpsErr(e)}
+});
+$('nearManualGo').addEventListener('click',()=>{
+  const m=$('nearManual').value.match(/-?\d+(?:\.\d+)?/g);
+  if(!m||m.length<2){toast('Format: -6.3188, 106.7220');return}
+  let a=+m[0],b=+m[1];if(Math.abs(a)>90){[a,b]=[b,a]}
+  S.nearCenter={la:a,lo:b,label:`titik ${a}, ${b}`};runNear();
+});
+
+/* ===== Aksi kartu (delegasi) ===== */
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-act]');if(!el)return;
+  const act=el.dataset.act;
+  if(act==='copyid')copyText(el.dataset.v);
+  else if(act==='copy')copyText(shareText(getRow(+el.dataset.i)));
+  else if(act==='fill'){$('q').value=el.dataset.v;showTab('cari');runSearch()}
+  else if(act==='near'){const o=getRow(+el.dataset.i);S.nearCenter={la:o.la,lo:o.lo,label:`IDPEL ${o.idpel}`};showTab('sekitar');runNear();scrollTo(0,0)}
+  else if(act==='done'){const id=el.dataset.v;if(S.done[id])delete S.done[id];else S.done[id]=1;saveList();renderList()}
+});
+
+/* ===== Navigasi tab ===== */
+function showTab(t){
+  document.querySelectorAll('.tab').forEach(s=>s.classList.toggle('active',s.id==='tab-'+t));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{showTab(b.dataset.tab);scrollTo(0,0)}));
+
+/* ===== Impor CSV DIL ===== */
+function splitLine(line,d){
+  if(d==='\t'||line.indexOf('"')<0)return line.split(d);
+  const out=[];let cur='',q=false;
+  for(let i=0;i<line.length;i++){const c=line[i];
+    if(q){if(c==='"'){if(line[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+    else if(c==='"')q=true;else if(c===d){out.push(cur);cur=''}else cur+=c}
+  out.push(cur);return out;
+}
+const clean=s=>(s||'').replace(/[|\r\n\t]/g,' ').replace(/\s+/g,' ').trim().toUpperCase();
+function num(s){s=(s||'').trim();if(!s)return NaN;if(s.indexOf(',')>=0&&s.indexOf('.')<0)s=s.replace(',','.');return Number(s)}
+function parseCoord(x,y){
+  const a=num(x),b=num(y);
+  if(!isFinite(a)||!isFinite(b)||(a===0&&b===0))return null;
+  if(Math.abs(a)<=15&&b>=90&&b<=145)return[a,b];   // X = lintang, Y = bujur (seperti DIL contoh)
+  if(Math.abs(b)<=15&&a>=90&&a<=145)return[b,a];   // tertukar
+  return null;
+}
+async function importCSV(file,dataDate){
+  const t0=performance.now();
+  overlay('Membaca file CSV…');await paint();
+  let text=await file.text();if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
+  const nl=text.indexOf('\n');const headLine=text.slice(0,nl<0?text.length:nl).replace(/\r$/,'');
+  const delim=['\t',';',','].map(d=>[d,headLine.split(d).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const head=splitLine(headLine,delim).map(h=>h.trim().replace(/^"|"$/g,'').toUpperCase());
+  const col=n=>head.indexOf(n);
+  const C={idpel:col('IDPEL'),nama:col('NAMA'),alamat:col('ALAMAT'),nobang:col('NOBANG'),ketnobang:col('KETNOBANG'),rt:col('RT'),rw:col('RW'),
+    kel:col('NAMA_KELURAHAN'),kec:col('NAMA_KECAMATAN'),tarif:col('TARIF'),daya:col('DAYA'),layanan:col('JENISLAYANAN'),
+    x:col('KOORDINAT_X'),y:col('KOORDINAT_Y'),meter:col('KET_KDPEMBMETER'),status:col('STATUS_DIL')};
+  const miss=['IDPEL','KOORDINAT_X','KOORDINAT_Y'].filter((n,k)=>[C.idpel,C.x,C.y][k]<0);
+  if(miss.length)throw new Error('Kolom wajib tidak ada: '+miss.join(', ')+'. Pastikan baris pertama berisi judul kolom DIL.');
+  const g=(f,k)=>k<0?'':f[k];
+  const st={rows:0,ok:0,badId:0,sci:0,dup:0,noTikor:0,out:0};
+  const seen=new Set(),lines=[];
+  let p=nl+1;
+  while(p<text.length){
+    let q=text.indexOf('\n',p);if(q<0)q=text.length;
+    let line=text.slice(p,q);p=q+1;
+    if(line.endsWith('\r'))line=line.slice(0,-1);
+    if(!line.trim())continue;
+    st.rows++;
+    if(st.rows%25000===0){overlay(`Memproses ${fmtN(st.rows)} baris…`);await paint()}
+    const f=splitLine(line,delim);
+    const rawId=(g(f,C.idpel)||'').trim().replace(/^['"]|['"]$/g,'');
+    if(/e\+/i.test(rawId)){st.sci++;st.badId++;continue}
+    const id=rawId.replace(/\D/g,'');
+    if(id.length!==12){st.badId++;continue}
+    if(seen.has(id)){st.dup++;continue}
+    seen.add(id);
+    const c=parseCoord(g(f,C.x),g(f,C.y));
+    if(!c)st.noTikor++;else if(isOut(c[0],c[1]))st.out++;
+    const nob=[clean(g(f,C.nobang)),clean(g(f,C.ketnobang))].filter(x=>x&&x!=='0').join(' ');
+    lines.push([id,c?c[0].toFixed(6):'',c?c[1].toFixed(6):'',clean(g(f,C.nama)),clean(g(f,C.alamat)),nob,clean(g(f,C.rt)),clean(g(f,C.rw)),
+      clean(g(f,C.kel)),clean(g(f,C.kec)),clean(g(f,C.tarif)),clean(g(f,C.daya)).replace(/\D/g,''),clean(g(f,C.layanan)),clean(g(f,C.meter)),clean(g(f,C.status))].join('|'));
+    st.ok++;
+  }
+  text=null;
+  if(!lines.length)throw new Error('Tidak ada baris valid yang bisa diimpor.');
+  overlay('Mengurutkan & mengompres…');await paint();
+  lines.sort(); // IDPEL 12 digit di awal baris → urut sesuai angka
+  const pkg=`#TIKORDIL|1|${dataDate}|${lines.length}|DIL ${file.name.replace(/\|/g,' ')}\n`+lines.join('\n')+'\n';
+  S.blob=await gzip(pkg);
+  overlay('Menyusun index…');await paint();
+  await loadText(pkg);await persist();
+  st.sec=((performance.now()-t0)/1000).toFixed(1).replace('.',',');
+  return st;
+}
+function repHTML(st){
+  const t=`Ringkasan impor DIL (tanpa data pelanggan)
+Baris dibaca          : ${fmtN(st.rows)}
+Berhasil diimpor      : ${fmtN(st.ok)}
+IDPEL tidak valid     : ${fmtN(st.badId)}${st.sci?` (${fmtN(st.sci)} format ilmiah Excel, mis. 5,43E+11)`:''}
+IDPEL duplikat        : ${fmtN(st.dup)}
+Tikor kosong/invalid  : ${fmtN(st.noTikor)}
+Tikor luar wilayah    : ${fmtN(st.out)}
+Waktu proses          : ${st.sec} detik`;
+  return `<pre class="panel small" style="white-space:pre-wrap;margin-top:10px">${esc(t)}</pre><button class="btn" id="copyRep">Salin ringkasan</button>`+
+    (st.sci?'<p class="err small">IDPEL rusak karena Excel. Simpan ulang CSV dengan kolom IDPEL berformat Text.</p>':'');
+}
+
+/* ===== Tab DATA ===== */
+$('dataDate').value=today();
+$('fileIn').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  $('impRep').innerHTML='';
+  try{
+    if(await isGz(f)){
+      overlay('Membuka paket data…');await paint();
+      const text=await unpack(f);
+      if(!text.startsWith('#TIKORDIL'))throw new Error('File .gz ini bukan paket data GERCEP.');
+      overlay('Menyusun index…');await paint();
+      await loadText(text);S.blob=new Blob([f],{type:'application/gzip'});await persist();
+      $('impRep').innerHTML=`<p class="small" style="color:var(--ok)">✔ Paket dimuat: ${fmtN(S.n)} pelanggan, data ${esc(fmtDate(S.meta.date))}.</p>`;
+    }else{
+      const st=await importCSV(f,$('dataDate').value||today());
+      $('impRep').innerHTML=repHTML(st);
+      const b=$('copyRep');if(b)b.onclick=()=>copyText($('impRep').querySelector('pre').textContent);
+    }
+    toast('Data berhasil dimuat');
+  }catch(err){$('impRep').innerHTML=`<p class="err small">✖ ${esc(err.message||err)}</p>`}
+  finally{overlay(null);e.target.value='';refreshAll()}
+});
+$('btnDl').addEventListener('click',()=>{
+  if(!S.blob)return toast('Belum ada paket');
+  const a=document.createElement('a');a.href=URL.createObjectURL(S.blob);
+  a.download=`gercep_dil_${(S.meta.date||today()).replace(/-/g,'')}.gz`;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+});
+if(IN_PREVIEW)$('dlNote').textContent='Catatan: unduhan, GPS, dan mode offline diblokir di pratinjau Claude. Semuanya berfungsi setelah aplikasi dipasang dari hosting sendiri.';
+async function makeDummy(n,save){
+  overlay(`Membuat ${fmtN(n)} data dummy…`);await paint();
+  const text=genDummy(n);
+  overlay('Mengompres…');await paint();S.blob=await gzip(text);
+  overlay('Menyusun index…');await paint();await loadText(text);
+  if(save)await persist();else S.stored=false;
+  overlay(null);
+}
+$('btnDummy').addEventListener('click',async()=>{await makeDummy(FULL_N,true);refreshAll();toast(`Dummy siap · index ${fmtN(Math.round(S.loadMs))} ms`)});
+$('btnDummySmall').addEventListener('click',async()=>{await makeDummy(DEMO_N,true);refreshAll()});
+let delArm=0;
+$('btnDel').addEventListener('click',async()=>{
+  const b=$('btnDel');
+  if(Date.now()-delArm>4000){delArm=Date.now();b.textContent='Tekan sekali lagi untuk menghapus';setTimeout(()=>b.textContent='Hapus data dari HP ini',4000);return}
+  try{await kvDel('pkg')}catch(e){}
+  S.listIds=[];S.done={};saveList();hist=[];ls.set('tikor_hist',[]);
+  await makeDummy(DEMO_N,false);refreshAll();b.textContent='Hapus data dari HP ini';toast('Data dihapus. Kembali ke mode demo.');
+});
+function applyTheme(){
+  const v=ls.get('tikor_theme','dark');$('theme').value=v;
+  const dark=v==='dark'||(v==='system'&&!(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches));
+  document.documentElement.dataset.theme=dark?'dark':'light';
+}
+$('theme').addEventListener('change',()=>{ls.set('tikor_theme',$('theme').value);applyTheme()});
+
+function refreshAll(){
+  const m=S.meta||{};
+  $('dataInfo').textContent=`${fmtN(S.n)} pelanggan · data ${fmtDate(m.date)}`;
+  const ban=[];
+  if(m.source==='DUMMY')ban.push('<div class="info">MODE DEMO · data dummy acak, bukan data pelanggan. Impor DIL di menu Data.</div>');
+  const age=m.date?Math.floor((Date.now()-new Date(m.date+'T00:00:00'))/864e5):0;
+  if(m.source!=='DUMMY'&&age>STALE_DAYS)ban.push(`<div class="warn">⚠ Data sudah ${age} hari. Mohon update di kantor.</div>`);
+  if(!S.stored&&m.source!=='DUMMY')ban.push('<div class="warn">Data hanya di memori, belum tersimpan di HP.</div>');
+  $('banner').innerHTML=ban.join('');
+  const st=S.stat||{};
+  $('dataStat').innerHTML=`<table class="kv">
+    <tr><td>Sumber</td><td>${esc(m.source||'-')}</td></tr>
+    <tr><td>Tanggal data</td><td>${esc(fmtDate(m.date))}</td></tr>
+    <tr><td>Jumlah pelanggan</td><td>${fmtN(S.n)}</td></tr>
+    <tr><td>Tikor valid</td><td>${fmtN(st.valid||0)}</td></tr>
+    <tr><td>Tikor kosong</td><td>${fmtN(st.none||0)}</td></tr>
+    <tr><td>Tikor di luar wilayah</td><td>${fmtN(st.out||0)}</td></tr>
+    <tr><td>Ukuran paket</td><td>${S.blob?(S.blob.size/1048576).toFixed(1).replace('.',',')+' MB':'-'}</td></tr>
+    <tr><td>Waktu susun index</td><td>${fmtN(Math.round(S.loadMs))} ms</td></tr>
+    <tr><td>Tersimpan di HP</td><td>${S.stored?'Ya':'Tidak'}</td></tr></table>`;
+  runSearch();renderList();if(S.nearCenter)runNear();
+}
+
+/* ===== Data dummy ===== */
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function genDummy(n){
+  const R=rng(20261119),pick=a=>a[(R()*a.length)|0],gs=()=>(R()+R()+R()-1.5)/1.5;
+  const FIRST=['AHMAD','BUDI','SITI','DEWI','RINA','AGUS','HENDRA','YUSUF','NUR','SRI','EKO','DIAN','FAJAR','INDAH','JOKO','LINA','MUHAMMAD','PUTRI','RUDI','TAUFIK','WATI','YANTI','ZAINAL','ANDI','BAMBANG','CITRA','DEDI','FITRI','GUNAWAN','HERI'];
+  const LAST=['SANTOSO','HIDAYAT','LESTARI','SAPUTRA','WIJAYA','KURNIAWAN','RAHMAN','SETIAWAN','PRATAMA','HASAN','SUHENDRA','MAULANA','NUGROHO','SARI','HAKIM','FIRMANSYAH','RAHAYU','ANGGRAINI','SUSANTO','IRAWAN'];
+  const JALAN=['JL. PAHLAWAN','JL. CIPUTAT RAYA','JL. SURYA KENCANA','JL. SILIWANGI','JL. MERPATI RAYA','JL. DAMAI','GG. MAWAR','GG. MELATI','JL. H. REAN','PERUM PAMULANG PERMAI BLOK A','PERUM VILLA DAGO BLOK H','JL. RAYA SERUA','JL. KAMBOJA','JL. KENANGA','JL. RAYA SAWANGAN'];
+  const WIL=[['SERUA','CIPUTAT',-6.3061,106.7013],['SAWAH','CIPUTAT',-6.2976,106.7400],['SERUA INDAH','CIPUTAT',-6.3189,106.7221],['BENDA BARU','PAMULANG',-6.3364,106.7221],
+             ['KEDAUNG','PAMULANG',-6.3178,106.7421],['BABAKAN','SETU',-6.3498,106.6864],['CINANGKA','SAWANGAN',-6.3654,106.7618],['LEBAK BULUS','CILANDAK',-6.2980,106.7899]];
+  const TAR=[['R1M','900'],['R1M','900'],['R1','900'],['R1','1300'],['R1','1300'],['R1','2200'],['R2','3500'],['R2','5500'],['B1','3500'],['B2','10600'],['P3','4400']];
+  const lines=new Array(n);let id=543600000000;
+  for(let i=0;i<n;i++){
+    id+=1+((R()*12)|0);
+    const w=pick(WIL),la=w[2]+gs()*0.012,lo=w[3]+gs()*0.012,r=R(),t=pick(TAR);
+    const tk=r<0.03?['','']:r<0.035?[(la-0.5).toFixed(6),lo.toFixed(6)]:[la.toFixed(6),lo.toFixed(6)];
+    lines[i]=[id,tk[0],tk[1],pick(FIRST)+' '+pick(LAST),pick(JALAN),String(1+((R()*150)|0)),String(1+((R()*12)|0)),String(1+((R()*9)|0)),
+      w[0],w[1],t[0],t[1],'PASKABAYAR',R()<0.15?'AMR':'MEKANIK/MANUAL','AKTIF'].join('|');
+  }
+  return `#TIKORDIL|1|${today()}|${n}|DUMMY\n`+lines.join('\n')+'\n';
+}
+
+/* ===== Mulai ===== */
+(async function boot(){
+  applyTheme();
+  try{
+    let rec=null;try{rec=await kvGet('pkg')}catch(e){}
+    if(rec&&rec.blob){
+      overlay('Memuat data tersimpan…');await paint();
+      const text=await unpack(rec.blob);await loadText(text);S.blob=rec.blob;S.stored=true;overlay(null);
+    }else await makeDummy(DEMO_N,false);
+  }catch(e){overlay(null);try{await kvDel('pkg')}catch(_){}await makeDummy(DEMO_N,false);toast('Data tersimpan rusak, kembali ke demo')}
+  refreshAll();
+  if(!IN_PREVIEW&&'serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+})();
+</script>
+</body>
+</html>

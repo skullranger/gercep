@@ -1,6 +1,6 @@
 // Service worker: simpan file aplikasi agar bisa dibuka tanpa internet.
 // Naikkan nomor versi setiap kali index.html diperbarui.
-const CACHE = 'gercep-app-v3';
+const CACHE = 'gercep-app-v4';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));

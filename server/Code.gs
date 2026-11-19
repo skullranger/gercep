@@ -23,6 +23,9 @@ function onOpen() {
     .addItem('3. Reset kode petugas yang dicentang', 'resetKode')
     .addSeparator()
     .addItem('Buat kunci data baru', 'menuBuatKunci')
+    .addSeparator()
+    .addItem('Aktifkan arsip LOG otomatis (bulanan)', 'aktifkanArsip')
+    .addItem('Arsipkan LOG sekarang', 'menuArsip')
     .addToUi();
 }
 
@@ -92,6 +95,58 @@ function menuBuatKunci() {
   if (r !== ui.Button.OK) return;
   const ver = buatKunci_();
   ui.alert('Kunci versi ' + ver + ' dibuat.\n\nDi GERCEP (akun ADMIN): Data → Sinkron sekarang → impor ulang Excel DIL → unduh paket baru.');
+}
+
+/* ===== Arsip LOG bulanan ===== */
+function aktifkanArsip() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'arsipkanLog') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('arsipkanLog').timeBased().onMonthDay(1).atHour(1).inTimezone('Asia/Jakarta').create();
+  ui_('Arsip otomatis aktif.\n\nSetiap tanggal 1 sekitar pukul 01.00, log bulan sebelumnya dipindah ke file "GERCEP LOG yyyy-mm" di folder Google Drive yang sama dengan Sheet ini. Sheet LOG hanya berisi log bulan berjalan.');
+}
+function menuArsip() {
+  const n = arsipkanLog();
+  ui_(n ? n + ' baris log bulan sebelumnya sudah dipindah ke file arsip.' : 'Belum ada log bulan sebelumnya untuk diarsipkan.');
+}
+function arsipkanLog() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const s = sh_('LOG'), v = s.getDataRange().getValues();
+    if (v.length < 2) return 0;
+    const now = new Date(), awal = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lama = {}, baru = [];
+    let n = 0;
+    v.slice(1).forEach(function (r) {
+      if (r[0] instanceof Date && r[0] < awal) {
+        const k = Utilities.formatDate(r[0], 'Asia/Jakarta', 'yyyy-MM');
+        (lama[k] = lama[k] || []).push(r); n++;
+      } else baru.push(r);
+    });
+    if (!n) return 0;
+    const ini = DriveApp.getFileById(SpreadsheetApp.getActive().getId());
+    const parents = ini.getParents(), folder = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
+    Object.keys(lama).forEach(function (k) {   // 1) tulis ke file arsip dulu
+      const nama = 'GERCEP LOG ' + k, ada = folder.getFilesByName(nama);
+      let ss;
+      if (ada.hasNext()) ss = SpreadsheetApp.open(ada.next());
+      else { ss = SpreadsheetApp.create(nama); DriveApp.getFileById(ss.getId()).moveTo(folder); }
+      const sh = ss.getSheets()[0];
+      if (sh.getLastRow() === 0) {
+        sh.appendRow(SH.LOG); sh.setFrozenRows(1);
+        sh.getRange(1, 1, 1, SH.LOG.length).setFontWeight('bold');
+        sh.getRange('G:G').setNumberFormat('@');
+        sh.getRange('A:A').setNumberFormat('dd/mm/yyyy hh:mm:ss');
+      }
+      const rows = lama[k];
+      sh.getRange(sh.getLastRow() + 1, 1, rows.length, SH.LOG.length).setValues(rows);
+    });
+    s.getRange(2, 1, s.getMaxRows() - 1, SH.LOG.length).clearContent();   // 2) baru kosongkan LOG
+    if (baru.length) s.getRange(2, 1, baru.length, SH.LOG.length).setValues(baru);
+    catat_('', '', '', 'ARSIP_LOG', '', n + ' baris → ' + Object.keys(lama).map(function (k) { return 'GERCEP LOG ' + k; }).join(', '), '');
+    return n;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* ===== Endpoint ===== */

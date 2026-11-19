@@ -42,6 +42,7 @@ Server GERCEP memakai **Google Sheet + Apps Script**. Server ini **tidak menyimp
 | Petugas berhenti / pindah | Ubah STATUS jadi `NONAKTIF`. Data di HP-nya otomatis terhapus saat HP itu online lagi |
 | Petugas ganti HP / kode bocor | Centang kolom **RESET** pada petugas tersebut → **GERCEP → 3. Reset kode petugas yang dicentang** → OK, lalu kirim kode baru |
 | Melihat siapa mengakses apa | Buka sheet **LOG** → gunakan filter pada kolom NAMA, AKSI, atau IDPEL |
+| Log makin banyak | Sekali saja: **GERCEP → Aktifkan arsip LOG otomatis (bulanan)**. Setiap tanggal 1, log bulan lalu dipindah ke file `GERCEP LOG yyyy-mm` di folder Drive yang sama |
 | File paket bocor ke luar | **GERCEP → Buat kunci data baru**, lalu buat ulang & bagikan paket. Untuk mematikan paket lama, ubah STATUS kunci lama jadi `NONAKTIF` di sheet KUNCI (tersembunyi: klik kanan tab sheet → Unhide) |
 
 **Arti kolom AKSI di LOG:** AKTIVASI (kode pertama kali dipakai), BUKA (aplikasi dibuka), CARI, NAVIGASI, PETA, SALIN, SALIN_IDPEL, KIRIM_WA, SEKITAR, DAFTAR, RUTE, SELESAI, IMPOR_PAKET, IMPOR_DIL, EKSPOR_PAKET, HAPUS_DATA, KELUAR, KODE_SALAH, KODE_DITOLAK (kode dicoba di HP lain), AKSES_DICABUT, RESET_KODE.

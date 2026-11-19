@@ -8,19 +8,19 @@ const CFG = {
   MAKS_GAGAL_JAM: 10   // batas salah kode per HP per jam
 };
 const SH = {
-  PETUGAS: ['ID', 'NAMA', 'KETERANGAN', 'PERAN', 'STATUS', 'BERLAKU_SD', 'KODE_AKSES', 'KODE_DIPAKAI'],
+  PETUGAS: ['ID', 'NAMA', 'KETERANGAN', 'PERAN', 'STATUS', 'BERLAKU_SD', 'KODE_AKSES', 'KODE_DIPAKAI', 'RESET'],
   LOG:     ['WAKTU_SERVER', 'WAKTU_HP', 'ID', 'NAMA', 'DEVICE_ID', 'AKSI', 'IDPEL', 'DETAIL'],
   SESI:    ['TOKEN_HASH', 'ID', 'DEVICE_ID', 'PERANGKAT', 'DIBUAT', 'TERAKHIR', 'STATUS'],
   KUNCI:   ['VERSI', 'KUNCI', 'DIBUAT', 'STATUS']
 };
-const P = { ID: 0, NAMA: 1, KET: 2, PERAN: 3, STATUS: 4, BERLAKU: 5, KODE: 6, DIPAKAI: 7 }; // kolom PETUGAS (0-based)
+const P = { ID: 0, NAMA: 1, KET: 2, PERAN: 3, STATUS: 4, BERLAKU: 5, KODE: 6, DIPAKAI: 7, RESET: 8 }; // kolom PETUGAS (0-based)
 
 /* ===== Menu di Google Sheet ===== */
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('GERCEP')
     .addItem('1. Siapkan sheet', 'setup')
     .addItem('2. Buat kode akses (petugas yang belum punya)', 'buatKodeAkses')
-    .addItem('3. Reset kode petugas di baris terpilih', 'resetKode')
+    .addItem('3. Reset kode petugas yang dicentang', 'resetKode')
     .addSeparator()
     .addItem('Buat kunci data baru', 'menuBuatKunci')
     .addToUi();
@@ -39,6 +39,7 @@ function setup() {
   });
   const p = ss.getSheetByName('PETUGAS');
   p.getRange('F:F').setNumberFormat('dd/mm/yyyy');
+  p.getRange('I2:I1000').insertCheckboxes();
   if (p.getLastRow() === 1) p.appendRow(['', 'ADMIN GERCEP', 'Ganti dengan nama admin', 'ADMIN', 'AKTIF', '', '', '']);
   ss.getSheetByName('LOG').getRange('G:G').setNumberFormat('@');
   if (ss.getSheetByName('KUNCI').getLastRow() === 1) buatKunci_();
@@ -64,16 +65,22 @@ function buatKodeAkses() {
 }
 
 function resetKode() {
-  const s = SpreadsheetApp.getActiveSheet();
-  if (s.getName() !== 'PETUGAS') return ui_('Buka sheet PETUGAS lalu klik baris petugas yang ingin di-reset.');
-  const row = s.getActiveRange().getRow();
-  if (row < 2) return ui_('Pilih baris petugas (bukan judul).');
-  const id = String(s.getRange(row, P.ID + 1).getValue()), nama = String(s.getRange(row, P.NAMA + 1).getValue());
-  s.getRange(row, P.KODE + 1).setValue(kodeBaru_());
-  s.getRange(row, P.DIPAKAI + 1).setValue('');
-  cabutSesi_(id);
-  catat_(id, nama, '', 'RESET_KODE', '', 'oleh admin', '');
-  ui_('Kode baru untuk ' + nama + ' sudah dibuat. HP lama otomatis keluar saat online berikutnya.');
+  const ui = SpreadsheetApp.getUi(), s = sh_('PETUGAS'), v = s.getDataRange().getValues();
+  const pilih = [];
+  for (let i = 1; i < v.length; i++) if (v[i][P.RESET] === true && String(v[i][P.NAMA]).trim()) pilih.push(i);
+  if (!pilih.length) return ui_('Belum ada yang dicentang.\n\nCentang kolom RESET pada petugas yang kodenya ingin diganti, lalu jalankan menu ini lagi.');
+  const daftar = pilih.map(function (i) { return '• ' + v[i][P.NAMA] + ' (' + v[i][P.ID] + ')'; }).join('\n');
+  const r = ui.alert('Reset kode akses?', daftar + '\n\nKode lama tidak berlaku lagi dan HP lama otomatis keluar saat online berikutnya.', ui.ButtonSet.OK_CANCEL);
+  if (r !== ui.Button.OK) return;
+  pilih.forEach(function (i) {
+    const id = String(v[i][P.ID]), nama = String(v[i][P.NAMA]);
+    s.getRange(i + 1, P.KODE + 1).setValue(kodeBaru_());
+    s.getRange(i + 1, P.DIPAKAI + 1).setValue('');
+    s.getRange(i + 1, P.RESET + 1).setValue(false);
+    cabutSesi_(id);
+    catat_(id, nama, '', 'RESET_KODE', '', 'oleh admin', '');
+  });
+  ui_('Kode baru dibuat untuk ' + pilih.length + ' petugas. Kirim kode baru ke masing-masing lewat WA pribadi.');
 }
 
 function menuBuatKunci() {

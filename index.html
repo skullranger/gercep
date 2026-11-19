@@ -147,14 +147,6 @@ nav button.active{color:var(--accent);font-weight:600}
       <p class="muted small" id="dlNote"></p>
     </div>
     <div class="panel">
-      <h3>Uji coba</h3>
-      <p class="muted small">Data dummy acak untuk mengukur kecepatan. Bukan data pelanggan.</p>
-      <div class="row">
-        <button id="btnDummy" class="btn">Buat dummy 498.610 baris</button>
-        <button id="btnDummySmall" class="btn ghost">Demo kecil (3.000)</button>
-      </div>
-    </div>
-    <div class="panel">
       <h3>Tampilan</h3>
       <select id="theme"><option value="dark">Gelap</option><option value="light">Terang</option><option value="system">Ikuti sistem</option></select>
     </div>
@@ -162,7 +154,7 @@ nav button.active{color:var(--accent);font-weight:600}
       <h3>Hapus data</h3>
       <div class="row"><button id="btnDel" class="btn danger">Hapus data dari HP ini</button></div>
     </div>
-    <p class="muted small" style="text-align:center"><b>GERCEP</b> · Geolokasi Rumah Pelanggan Cepat<br>Prototipe v0.1 · data tersimpan hanya di perangkat ini</p>
+    <p class="muted small" style="text-align:center"><b>GERCEP</b> · Geolokasi Rumah Pelanggan Cepat<br>Prototipe v0.2 · data tersimpan hanya di perangkat ini</p>
   </section>
 </main>
 
@@ -670,8 +662,6 @@ async function makeDummy(n,save){
   if(save)await persist();else S.stored=false;
   overlay(null);
 }
-$('btnDummy').addEventListener('click',async()=>{await makeDummy(FULL_N,true);refreshAll();toast(`Dummy siap · index ${fmtN(Math.round(S.loadMs))} ms`)});
-$('btnDummySmall').addEventListener('click',async()=>{await makeDummy(DEMO_N,true);refreshAll()});
 let delArm=0;
 $('btnDel').addEventListener('click',async()=>{
   const b=$('btnDel');

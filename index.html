@@ -172,7 +172,8 @@ nav button.active{color:var(--accent);font-weight:600}
       <label id="dateWrap">Tanggal data DIL<input type="date" id="dataDate"></label>
       <input type="file" id="fileIn">
       <div id="impRep"></div>
-      <div class="row" id="dlWrap"><button id="btnDl" class="btn">⬇ Unduh paket data (.gercep) untuk dibagikan</button></div>
+      <div class="row" id="dlWrap"><button id="btnPub" class="btn primary">📤 Terbitkan ke petugas</button><button id="btnDl" class="btn">⬇ Unduh file .gercep</button></div>
+      <div class="row"><button id="btnPull" class="btn">⬇ Unduh data terbaru</button></div>
       <p class="muted small" id="dlNote"></p>
     </div>
     <div class="panel">
@@ -183,7 +184,7 @@ nav button.active{color:var(--accent);font-weight:600}
       <h3>Hapus data pelanggan</h3>
       <div class="row"><button id="btnDel" class="btn danger">Hapus data pelanggan dari HP ini</button></div>
     </div>
-    <p class="muted small" style="text-align:center"><b>GERCEP</b> · Geolokasi Rumah Pelanggan Cepat<br>Versi 0.3 · data terenkripsi & tersimpan hanya di perangkat ini</p>
+    <p class="muted small" style="text-align:center"><b>GERCEP</b> · Geolokasi Rumah Pelanggan Cepat<br>Versi 0.4 · data terenkripsi & tersimpan hanya di perangkat ini</p>
   </section>
 </main>
 
@@ -208,7 +209,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxRXY4ZpbHeds0DWsPYCqQl
 const MAGIC = 'GERCEPENC1';                   // penanda paket terenkripsi
 
 const S = {text:'',n:0,starts:null,idp:null,lat:null,lng:null,order:null,meta:null,blob:null,stored:false,
-           pos:null,stat:null,loadMs:0,listIds:[],done:{},nearCenter:null,sess:null,dataErr:''};
+           pos:null,stat:null,loadMs:0,listIds:[],done:{},nearCenter:null,sess:null,dataErr:'',pkgVer:null,dlMsg:'',dlErr:''};
 
 /* ===== Util ===== */
 const $ = id => document.getElementById(id);
@@ -241,7 +242,7 @@ const kvGet=k=>kv('readonly',s=>s.get(k));
 const kvSet=(k,v)=>kv('readwrite',s=>s.put(v,k));
 const kvDel=k=>kv('readwrite',s=>s.delete(k));
 async function persist(){
-  try{await kvSet('pkg',{blob:S.blob,savedAt:Date.now()});S.stored=true;try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}
+  try{await kvSet('pkg',{blob:S.blob,savedAt:Date.now(),ver:S.pkgVer});S.stored=true;try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}
   catch(e){S.stored=false}
 }
 
@@ -307,16 +308,16 @@ const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const DEV=(()=>{let d=ls.get('gercep_dev','');if(!d){d=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));ls.set('gercep_dev',d)}return d})();
 const PERANGKAT=navigator.userAgent.replace(/\s+/g,' ').slice(0,180);
 function fmtD(iso){const d=new Date(iso);return isNaN(d)?'-':`${d.getDate()} ${BLN[d.getMonth()]} ${d.getFullYear()}`}
-async function api(action,payload,keep){
+async function api(action,payload,keep,ms){
   if(!/^https:\/\/script\.google\.com\//.test(API_URL))throw new Error('Server GERCEP belum diatur (API_URL).');
-  const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),30000);
+  const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),ms||30000);
   try{const r=await fetch(API_URL,{method:'POST',body:JSON.stringify(Object.assign({action,deviceId:DEV},payload)),signal:ctl.signal,keepalive:!!keep});return await r.json()}
   catch(e){throw new Error(navigator.onLine?'Server tidak dapat dihubungi. Coba lagi.':'Tidak ada koneksi internet.')}
   finally{clearTimeout(t)}
 }
 async function saveSession(r){
   const keys=await Promise.all((r.keys||[]).map(async k=>({ver:+k.ver,key:await crypto.subtle.importKey('raw',unb64(k.key),'AES-GCM',false,['encrypt','decrypt'])})));
-  S.sess={token:r.token,id:r.id,nama:r.nama,peran:r.peran,berlakuSd:r.berlakuSd,keys,sync:Date.now()};
+  S.sess={token:r.token,id:r.id,nama:r.nama,peran:r.peran,berlakuSd:r.berlakuSd,keys,paket:r.paket||null,sync:Date.now()};
   try{await kvSet('session',S.sess)}catch(e){}
 }
 async function syncSession(){
@@ -346,7 +347,7 @@ async function flushLog(){
   }catch(e){}finally{flushing=false}
 }
 /* -- hapus semua data lokal -- */
-function clearData(){Object.assign(S,{text:'',n:0,starts:null,idp:null,lat:null,lng:null,order:null,meta:null,blob:null,stored:false,stat:null,loadMs:0,nearCenter:null})}
+function clearData(){Object.assign(S,{text:'',n:0,starts:null,idp:null,lat:null,lng:null,order:null,meta:null,blob:null,stored:false,stat:null,loadMs:0,nearCenter:null,pkgVer:null})}
 async function wipeAll(){
   for(const k of ['pkg','session'])try{await kvDel(k)}catch(e){}
   for(const k of ['tikor_hist','tikor_list','gercep_logq'])try{localStorage.removeItem(k)}catch(e){}
@@ -387,7 +388,7 @@ async function loadStoredData(){
   let rec=null;try{rec=await kvGet('pkg')}catch(e){}
   if(!rec||!rec.blob)return;
   if(!(await readPackageHead(rec.blob))){try{await kvDel('pkg')}catch(e){}S.dataErr='Data versi lama (tanpa enkripsi) sudah dihapus. Silakan impor paket .gercep terbaru.';return}
-  try{overlay('Membuka data…');await paint();const text=await openPackage(rec.blob);await loadText(text);S.blob=rec.blob;S.stored=true}
+  try{overlay('Membuka data…');await paint();const text=await openPackage(rec.blob);await loadText(text);S.blob=rec.blob;S.pkgVer=rec.ver??null;S.stored=true}
   catch(e){clearData();S.dataErr=e.message}
   finally{overlay(null)}
 }
@@ -429,9 +430,57 @@ async function openApp(evt){
   await loadStoredData();
   logEvent(evt||'BUKA');
   refreshAll();
-  if(evt==='BUKA'&&navigator.onLine)syncSession().then(()=>refreshAll()).catch(()=>{});
+  if(evt==='BUKA'&&navigator.onLine)syncSession().then(()=>{refreshAll();checkUpdate()}).catch(()=>{});
+  else checkUpdate();
   flushLog();
-  if(!S.n&&!S.dataErr)showTab('data');
+  if(!S.n&&!S.dataErr&&!(S.sess.paket))showTab('data');
+}
+/* ===== Sinkron data otomatis ===== */
+let dlBusy=false;
+async function checkUpdate(force){
+  const p=S.sess&&S.sess.paket;
+  if(!p||dlBusy||!navigator.onLine)return;
+  if(!force){
+    if(S.pkgVer===p.ver)return;
+    if(S.sess.peran==='ADMIN'&&S.pkgVer==null&&S.n)return; // data admin yang belum diterbitkan jangan ditimpa
+  }
+  dlBusy=true;S.dlErr='';
+  const label=`data ${fmtDate(p.date)}`;
+  try{
+    const parts=[];
+    for(let i=0;i<p.parts;i++){
+      S.dlMsg=`⬇ Mengunduh ${label}… ${Math.round(i/p.parts*100)}%`;renderBanner();
+      const r=await api('pkgChunk',{token:S.sess.token,ver:p.ver,i},false,180000);
+      if(!r.ok){if(r.revoked){S.dlMsg='';return revoked(r.msg)}throw new Error(r.msg||'Server menolak permintaan.')}
+      parts.push(unb64(r.data));
+    }
+    S.dlMsg=`⬇ Menyimpan ${label}…`;renderBanner();
+    const blob=new Blob(parts,{type:'application/octet-stream'});
+    const text=await openPackage(blob);
+    await loadText(text);S.blob=blob;S.pkgVer=p.ver;S.dataErr='';await persist();
+    logEvent('UNDUH_DATA','',`versi ${p.ver} · ${label}`);
+    S.dlMsg='';refreshAll();toast(`Data diperbarui: ${fmtDate(p.date)} · ${fmtN(S.n)} pelanggan`);
+  }catch(e){
+    S.dlMsg='';S.dlErr=`Gagal mengunduh data terbaru (${e.message}). Data lama tetap bisa dipakai. Coba lagi di menu Data → Unduh data terbaru.`;refreshAll();
+  }finally{dlBusy=false}
+}
+async function publishPackage(){
+  if(!S.blob||!S.n)throw new Error('Impor Excel DIL dulu.');
+  const CH=2*1024*1024,buf=new Uint8Array(await S.blob.arrayBuffer()),n=Math.ceil(buf.length/CH);
+  overlay('Menyiapkan unggahan…');await paint();
+  const st=await api('uploadStart',{token:S.sess.token,meta:{date:S.meta.date,n:S.n,size:buf.length,chunks:n}});
+  if(!st.ok)throw new Error(st.msg);
+  for(let i=0;i<n;i++){
+    overlay(`Mengunggah ke server… ${Math.round(i/n*100)}%`);await paint();
+    const r=await api('uploadChunk',{token:S.sess.token,uploadId:st.uploadId,i,data:b64(buf.subarray(i*CH,(i+1)*CH))},false,180000);
+    if(!r.ok)throw new Error(r.msg);
+  }
+  overlay('Menyelesaikan…');await paint();
+  const f=await api('uploadFinish',{token:S.sess.token,uploadId:st.uploadId});
+  if(!f.ok)throw new Error(f.msg);
+  S.sess.paket=f.paket;S.pkgVer=f.paket.ver;try{await kvSet('session',S.sess)}catch(e){}
+  await persist();
+  return f.paket;
 }
 
 /* ===== Pencarian ===== */
@@ -517,7 +566,7 @@ function logSearch(q,r){
   },r.mode==='exact'?0:1500);
 }
 function runSearch(){
-  if(!S.n){$('res').innerHTML='';$('hint').innerHTML=S.sess?`<div class="empty">Belum ada data pelanggan di HP ini.<br>${S.dataErr?esc(S.dataErr)+'<br>':''}Buka menu <b>Data</b> untuk impor paket.</div>`:'';return}
+  if(!S.n){$('res').innerHTML='';$('hint').innerHTML=!S.sess?'':S.dlMsg?`<div class="empty">Sedang mengunduh data pelanggan…<br>Mohon tunggu sebentar.</div>`:`<div class="empty">Belum ada data pelanggan di HP ini.<br>${S.dataErr?esc(S.dataErr)+'<br>':''}Sambungkan internet agar data terunduh otomatis, atau buka menu <b>Data</b>.</div>`;return}
   const q=$('q').value,t0=performance.now(),r=doSearch(q),ms=performance.now()-t0;
   if(r.mode!=='empty'&&r.mode!=='msg')logSearch(q,r);
   if(r.mode==='empty'){$('res').innerHTML='';showHint();return}
@@ -805,7 +854,7 @@ $('fileIn').addEventListener('change',async e=>{
       overlay('Membuka paket data…');await paint();
       const text=await openPackage(f);
       overlay('Menyusun index…');await paint();
-      await loadText(text);S.blob=new Blob([f],{type:'application/octet-stream'});await persist();S.dataErr='';
+      await loadText(text);S.blob=new Blob([f],{type:'application/octet-stream'});S.pkgVer=null;await persist();S.dataErr='';
       logEvent('IMPOR_PAKET','',`data ${S.meta.date} · ${S.n} pelanggan`);
       $('impRep').innerHTML=`<p class="small" style="color:var(--ok)">✔ Data dimuat: ${fmtN(S.n)} pelanggan, data ${esc(fmtDate(S.meta.date))}.</p>`;
     }else if(await isGz(f)){
@@ -813,7 +862,7 @@ $('fileIn').addEventListener('change',async e=>{
     }else if(!S.sess||S.sess.peran!=='ADMIN'){
       throw new Error('File ini bukan paket data GERCEP (.gercep). Minta paket terbaru ke admin.');
     }else{
-      const st=await importDIL(f,$('dataDate').value||today());S.dataErr='';
+      S.pkgVer=null;const st=await importDIL(f,$('dataDate').value||today());S.dataErr='';
       logEvent('IMPOR_DIL','',`${f.name} · ${st.ok} baris`);
       $('impRep').innerHTML=repHTML(st);
       const b=$('copyRep');if(b)b.onclick=()=>copyText($('impRep').querySelector('pre').textContent);
@@ -845,7 +894,16 @@ twoTap($('btnLogout'),'Keluar dari HP ini',async()=>{
   await wipeAll();refreshAll();gate('kode','Anda sudah keluar. Data di HP ini telah dihapus.');
 });
 $('btnSync').addEventListener('click',()=>busy($('btnSync'),async()=>{
-  try{const ok=await syncSession();if(!ok)return;await flushLog();refreshAll();toast('Sinkron berhasil')}catch(e){toast(e.message)}
+  try{const ok=await syncSession();if(!ok)return;await flushLog();refreshAll();toast('Sinkron berhasil');checkUpdate()}catch(e){toast(e.message)}
+}));
+$('btnPull').addEventListener('click',()=>busy($('btnPull'),async()=>{
+  try{if(navigator.onLine)await syncSession()}catch(e){}
+  if(!S.sess)return;
+  await checkUpdate(true);
+}));
+$('btnPub').addEventListener('click',()=>busy($('btnPub'),async()=>{
+  try{const p=await publishPackage();overlay(null);logEvent('TERBITKAN_DATA','',`versi ${p.ver}`);refreshAll();toast(`Data ${fmtDate(p.date)} diterbitkan. HP petugas akan mengunduh otomatis.`)}
+  catch(e){overlay(null);toast('Gagal terbitkan: '+e.message)}
 }));
 function applyTheme(){
   const v=ls.get('tikor_theme','dark');$('theme').value=v;
@@ -854,24 +912,28 @@ function applyTheme(){
 }
 $('theme').addEventListener('change',()=>{ls.set('tikor_theme',$('theme').value);applyTheme()});
 
+function renderBanner(){$('banner').innerHTML=(S.dlMsg?`<div class="info">${esc(S.dlMsg)}</div>`:'')+(S._ban||[]).join('')}
 function refreshAll(){
   const m=S.meta||{},se=S.sess,admin=se&&se.peran==='ADMIN';
   $('dataInfo').textContent=S.n?`${fmtN(S.n)} pelanggan · data ${fmtDate(m.date)}`:'Belum ada data pelanggan';
   const ban=[];
   if(S.dataErr)ban.push(`<div class="warn">⚠ ${esc(S.dataErr)}</div>`);
-  else if(se&&!S.n)ban.push('<div class="info">Belum ada data. Buka menu <b>Data</b> untuk impor paket dari admin.</div>');
+  else if(se&&!S.n&&!S.dlMsg)ban.push(se.paket?'<div class="info">Belum ada data di HP ini. Sambungkan internet agar data terunduh otomatis.</div>':'<div class="info">Belum ada data. Admin belum menerbitkan data.</div>');
+  if(S.dlErr)ban.push(`<div class="warn">⚠ ${esc(S.dlErr)}</div>`);
   const age=m.date?Math.floor((Date.now()-new Date(m.date+'T00:00:00'))/864e5):0;
   if(S.n&&age>STALE_DAYS)ban.push(`<div class="warn">⚠ Data sudah ${age} hari. Mohon update di kantor.</div>`);
   if(se){const left=Math.floor((new Date(se.berlakuSd)-Date.now())/864e5);if(left<=5)ban.push(`<div class="warn">Akses offline berakhir ${esc(fmtD(se.berlakuSd))}. Buka GERCEP saat ada internet agar diperpanjang otomatis.</div>`)}
-  $('banner').innerHTML=ban.join('');
+  S._ban=ban;renderBanner();
   $('acct').innerHTML=se?`<table class="kv">
     <tr><td>Nama</td><td>${esc(se.nama)}</td></tr>
     <tr><td>ID · Peran</td><td>${esc(se.id)} · ${esc(se.peran)}</td></tr>
     <tr><td>Akses offline s.d.</td><td>${esc(fmtD(se.berlakuSd))}</td></tr>
     <tr><td>Log belum terkirim</td><td>${fmtN(logQ.length)}</td></tr></table>`:'';
   $('impHelp').innerHTML=admin
-    ?'<b>Admin:</b> pilih file DIL <b>Excel (.xlsx)</b> atau CSV/TXT (sheet pertama, wajib ada kolom IDPEL, KOORDINAT_X, KOORDINAT_Y), lalu unduh paket <b>.gercep</b> untuk dibagikan ke petugas. Paket terenkripsi, hanya bisa dibuka di GERCEP oleh petugas terdaftar.'
-    :'Pilih file paket <b>.gercep</b> yang dibagikan admin.';
+    ?'<b>Admin:</b> pilih file DIL <b>Excel (.xlsx)</b> atau CSV/TXT (sheet pertama, wajib ada kolom IDPEL, KOORDINAT_X, KOORDINAT_Y), lalu klik <b>Terbitkan ke petugas</b>. HP petugas mengunduh data baru secara otomatis saat online.'
+    :'Data diperbarui <b>otomatis</b> setiap kali GERCEP dibuka dengan internet. Jika perlu, bisa juga memilih file paket <b>.gercep</b> secara manual.';
+  $('btnPull').style.display=se&&se.paket?'':'none';
+  $('btnPull').textContent=se&&se.paket&&S.pkgVer!==se.paket.ver?`⬇ Unduh data terbaru (${fmtDate(se.paket.date)})`:'⬇ Unduh ulang data dari server';
   $('dateWrap').style.display=admin?'':'none';
   $('dlWrap').style.display=admin&&S.blob?'':'none';
   if(admin)$('fileIn').setAttribute('accept','.gercep,.xlsx,.csv,.txt,.tsv');else $('fileIn').removeAttribute('accept');
@@ -883,7 +945,8 @@ function refreshAll(){
     <tr><td>Tikor valid</td><td>${fmtN(st.valid||0)}</td></tr>
     <tr><td>Tikor kosong</td><td>${fmtN(st.none||0)}</td></tr>
     <tr><td>Tikor di luar wilayah</td><td>${fmtN(st.out||0)}</td></tr>
-    <tr><td>Ukuran paket</td><td>${S.blob?(S.blob.size/1048576).toFixed(1).replace('.',',')+' MB':'-'}</td></tr></table>`
+    <tr><td>Ukuran paket</td><td>${S.blob?(S.blob.size/1048576).toFixed(1).replace('.',',')+' MB':'-'}</td></tr>
+    <tr><td>Data di server</td><td>${se&&se.paket?esc(fmtDate(se.paket.date))+(S.pkgVer===se.paket.ver?' ✔ sama':' · <span style="color:var(--warn)">lebih baru</span>'):'-'}</td></tr></table>`
     :'<p class="muted small">Belum ada data pelanggan di HP ini.</p>';
   runSearch();renderList();if(S.nearCenter)runNear();
 }
@@ -895,7 +958,7 @@ function refreshAll(){
   try{S.sess=await kvGet('session')}catch(e){S.sess=null}
   if(!S.sess||!S.sess.token)gate('kode');
   else await openApp('BUKA');
-  window.addEventListener('online',()=>flushLog());
+  window.addEventListener('online',()=>{flushLog();if(S.sess)syncSession().then(ok=>{if(ok){refreshAll();checkUpdate()}}).catch(()=>{})});
   setInterval(flushLog,60000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushLog()});
   if(!IN_PREVIEW&&'serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js').catch(()=>{})}

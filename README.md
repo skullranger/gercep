@@ -1,11 +1,12 @@
-# GERCEP – Geolokasi Rumah Pelanggan Cepat (v0.3)
+# GERCEP – Geolokasi Rumah Pelanggan Cepat (v0.4)
 
 Aplikasi HP (PWA) PLN UP3 Ciputat untuk mencari tikor pelanggan dari IDPEL secara offline.
 
-## Akses & keamanan (v0.3)
+## Akses & keamanan (v0.4)
 - Petugas masuk dengan **kode akses** dari admin, cukup sekali per HP. Tidak perlu PIN atau email.
 - Paket data berformat **.gercep** dan terenkripsi (AES-256). Paket hanya bisa dibuka di GERCEP oleh petugas yang aktif.
 - Setiap aksi (cari, navigasi, salin, kirim WA, impor) dicatat ke sheet **LOG** atas nama petugas, dan dikirim saat HP online.
+- **Sinkron otomatis:** admin klik *Terbitkan ke petugas*, lalu HP petugas mengunduh data baru sendiri saat online.
 - Admin bisa menonaktifkan atau me-reset kode petugas dari Google Sheet. Panduan lengkapnya ada di `server/PANDUAN_SERVER.md`.
 
 ## Isi folder

@@ -1,4 +1,4 @@
-# Panduan Server GERCEP v0.3 (Kode Akses + Log Akses)
+# Panduan Server GERCEP v0.4 (Kode Akses, Sinkron Data Otomatis, Log Akses)
 
 Server GERCEP memakai **Google Sheet + Apps Script**. Server ini **tidak menyimpan data pelanggan**. Isinya hanya daftar petugas, kunci paket, sesi HP, dan log akses.
 
@@ -29,11 +29,14 @@ Server GERCEP memakai **Google Sheet + Apps Script**. Server ini **tidak menyimp
 | BERLAKU_SD | Opsional. Tanggal akhir akses (mis. akhir kontrak vendor) |
 | KODE_DIPAKAI | Terisi otomatis: HP yang memakai kode + waktunya |
 
-## C. Alur bulanan
+## C. Alur bulanan (update data)
 
-1. **Admin** buka GERCEP di laptop → masukkan kode akses admin → menu **Data** → pilih Excel DIL → klik **Unduh paket data (.gercep)**.
-2. Bagikan file `.gercep` ke petugas. File ini **terenkripsi**, jadi kalau diteruskan ke orang lain tetap tidak bisa dibuka tanpa kode akses yang aktif.
-3. **Petugas** buka GERCEP → **Data** → pilih file `.gercep`.
+1. **Admin** buka GERCEP di laptop → menu **Data** → pilih Excel DIL → klik **📤 Terbitkan ke petugas**.
+2. Selesai. **HP petugas mengunduh data baru secara otomatis** saat GERCEP dibuka dengan internet (±13 MB per update). Petugas baru juga langsung mendapat data setelah memasukkan kode akses.
+
+Paket tersimpan terenkripsi di folder Drive **GERCEP Paket (jangan dibagikan)**, satu folder dengan Sheet ini. Riwayat terbitan tercatat di sheet **PAKET**. Hanya versi terbaru dan satu versi sebelumnya yang disimpan; versi yang lebih lama dihapus otomatis.
+
+> Cadangan manual tetap tersedia: admin bisa mengunduh file `.gercep`, dan petugas bisa memilihnya di menu Data.
 
 ## D. Pengelolaan sehari-hari
 
@@ -45,7 +48,7 @@ Server GERCEP memakai **Google Sheet + Apps Script**. Server ini **tidak menyimp
 | Log makin banyak | Sekali saja: **GERCEP → Aktifkan arsip LOG otomatis (bulanan)**. Setiap tanggal 1, log bulan lalu dipindah ke file `GERCEP LOG yyyy-mm` di folder Drive yang sama |
 | File paket bocor ke luar | **GERCEP → Buat kunci data baru**, lalu buat ulang & bagikan paket. Untuk mematikan paket lama, ubah STATUS kunci lama jadi `NONAKTIF` di sheet KUNCI (tersembunyi: klik kanan tab sheet → Unhide) |
 
-**Arti kolom AKSI di LOG:** AKTIVASI (kode pertama kali dipakai), BUKA (aplikasi dibuka), CARI, NAVIGASI, PETA, SALIN, SALIN_IDPEL, KIRIM_WA, SEKITAR, DAFTAR, RUTE, SELESAI, IMPOR_PAKET, IMPOR_DIL, EKSPOR_PAKET, HAPUS_DATA, KELUAR, KODE_SALAH, KODE_DITOLAK (kode dicoba di HP lain), AKSES_DICABUT, RESET_KODE.
+**Arti kolom AKSI di LOG:** AKTIVASI (kode pertama kali dipakai), BUKA (aplikasi dibuka), CARI, NAVIGASI, PETA, SALIN, SALIN_IDPEL, KIRIM_WA, SEKITAR, DAFTAR, RUTE, SELESAI, IMPOR_PAKET, IMPOR_DIL, EKSPOR_PAKET, TERBITKAN_DATA, UNDUH_DATA, HAPUS_DATA, KELUAR, KODE_SALAH, KODE_DITOLAK (kode dicoba di HP lain), AKSES_DICABUT, RESET_KODE.
 
 Log dari HP yang sedang offline dikirim otomatis saat HP kembali online. Karena itu WAKTU_HP (waktu kejadian) bisa lebih awal dari WAKTU_SERVER (waktu diterima).
 

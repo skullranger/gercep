@@ -11,7 +11,8 @@ const SH = {
   PETUGAS: ['ID', 'NAMA', 'KETERANGAN', 'PERAN', 'STATUS', 'BERLAKU_SD', 'KODE_AKSES', 'KODE_DIPAKAI', 'RESET'],
   LOG:     ['WAKTU_SERVER', 'WAKTU_HP', 'ID', 'NAMA', 'DEVICE_ID', 'AKSI', 'IDPEL', 'DETAIL'],
   SESI:    ['TOKEN_HASH', 'ID', 'DEVICE_ID', 'PERANGKAT', 'DIBUAT', 'TERAKHIR', 'STATUS'],
-  KUNCI:   ['VERSI', 'KUNCI', 'DIBUAT', 'STATUS']
+  KUNCI:   ['VERSI', 'KUNCI', 'DIBUAT', 'STATUS'],
+  PAKET:   ['VERSI', 'TANGGAL_DATA', 'JUMLAH_PELANGGAN', 'UKURAN_MB', 'DITERBITKAN', 'OLEH', 'STATUS', 'FILE_IDS']
 };
 const P = { ID: 0, NAMA: 1, KET: 2, PERAN: 3, STATUS: 4, BERLAKU: 5, KODE: 6, DIPAKAI: 7, RESET: 8 }; // kolom PETUGAS (0-based)
 
@@ -155,10 +156,16 @@ function doGet() { return out_({ ok: true, app: 'GERCEP', waktu: new Date() }); 
 function doPost(e) {
   let q;
   try { q = JSON.parse(e.postData.contents); } catch (err) { return out_({ ok: false, msg: 'Permintaan tidak valid.' }); }
+  if (q.action === 'pkgChunk') {   // unduhan dilayani tanpa antre (hanya membaca)
+    try { return out_(pkgChunk_(q)); } catch (err) { return out_({ ok: false, msg: 'Server error: ' + err.message }); }
+  }
   const lock = LockService.getScriptLock();
-  try { lock.waitLock(20000); } catch (err) { return out_({ ok: false, msg: 'Server sibuk, coba lagi.' }); }
+  try { lock.waitLock(25000); } catch (err) { return out_({ ok: false, msg: 'Server sibuk, coba lagi.' }); }
   try {
     switch (q.action) {
+      case 'uploadStart':  return out_(uploadStart_(q));
+      case 'uploadChunk':  return out_(uploadChunk_(q));
+      case 'uploadFinish': return out_(uploadFinish_(q));
       case 'activate': return out_(activate_(q));
       case 'refresh':  return out_(refresh_(q));
       case 'log':      return out_(terimaLog_(q));
@@ -246,6 +253,110 @@ function terimaLog_(q) {
   return masihAktif ? { ok: true, n: ev.length } : { ok: true, n: ev.length, revoked: true, msg: 'Akses Anda sudah dinonaktifkan admin.' };
 }
 
+/* ===== Paket data: terbitkan (admin) & unduh (petugas) ===== */
+function sesiAktif_(token) {
+  const se = cariSesi_(token);
+  if (!se || se.status !== 'AKTIF') return null;
+  const u = cariPetugas_(se.id);
+  return aktif_(u) ? { se: se, u: u } : null;
+}
+function uploadStart_(q) {
+  const a = sesiAktif_(q.token);
+  if (!a) return { ok: false, revoked: true, msg: 'Akses tidak berlaku.' };
+  if (a.u.peran !== 'ADMIN') return { ok: false, msg: 'Hanya admin yang dapat menerbitkan data.' };
+  const m = q.meta || {}, chunks = Number(m.chunks);
+  if (!(chunks > 0 && chunks <= 40)) return { ok: false, msg: 'Ukuran paket tidak valid.' };
+  const id = Utilities.getUuid();
+  CacheService.getScriptCache().put('up_' + id, JSON.stringify({ meta: { date: String(m.date || ''), n: Number(m.n) || 0, size: Number(m.size) || 0, chunks: chunks }, parts: [], by: a.u.id }), 21600);
+  return { ok: true, uploadId: id };
+}
+function uploadChunk_(q) {
+  const a = sesiAktif_(q.token);
+  if (!a || a.u.peran !== 'ADMIN') return { ok: false, msg: 'Akses tidak berlaku.' };
+  const c = CacheService.getScriptCache(), raw = c.get('up_' + q.uploadId);
+  if (!raw) return { ok: false, msg: 'Sesi unggah kedaluwarsa. Ulangi Terbitkan.' };
+  const up = JSON.parse(raw), i = Number(q.i);
+  if (!(i >= 0 && i < up.meta.chunks) || typeof q.data !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(q.data)) return { ok: false, msg: 'Potongan data tidak valid.' };
+  const f = folderPaket_().createFile(Utilities.newBlob(q.data, 'text/plain', 'part_' + q.uploadId + '_' + i + '.b64'));
+  up.parts[i] = f.getId();
+  c.put('up_' + q.uploadId, JSON.stringify(up), 21600);
+  return { ok: true, i: i };
+}
+function uploadFinish_(q) {
+  const a = sesiAktif_(q.token);
+  if (!a || a.u.peran !== 'ADMIN') return { ok: false, msg: 'Akses tidak berlaku.' };
+  const c = CacheService.getScriptCache(), raw = c.get('up_' + q.uploadId);
+  if (!raw) return { ok: false, msg: 'Sesi unggah kedaluwarsa. Ulangi Terbitkan.' };
+  const up = JSON.parse(raw);
+  for (let i = 0; i < up.meta.chunks; i++) if (!up.parts[i]) return { ok: false, msg: 'Unggahan belum lengkap. Ulangi Terbitkan.' };
+  const s = shPaket_(), v = s.getDataRange().getValues();
+  let ver = 0;
+  for (let i = 1; i < v.length; i++) ver = Math.max(ver, Number(v[i][0]) || 0);
+  ver++;
+  // paket lama: satu versi sebelumnya disimpan (untuk petugas yang sedang mengunduh), yang lebih lama dibuang
+  for (let i = 1; i < v.length; i++) {
+    const st = String(v[i][6]).toUpperCase();
+    if (st === 'AKTIF') s.getRange(i + 1, 7).setValue('LAMA');
+    else if (st === 'LAMA') { hapusFile_(v[i][7]); s.getRange(i + 1, 7).setValue('DIHAPUS'); }
+  }
+  s.appendRow([ver, up.meta.date, up.meta.n, Math.round(up.meta.size / 1048576 * 10) / 10, new Date(), a.u.nama, 'AKTIF', up.parts.join(',')]);
+  c.remove('up_' + q.uploadId);
+  catat_(a.u.id, a.u.nama, q.deviceId, 'TERBITKAN_DATA', '', 'versi ' + ver + ' · data ' + up.meta.date + ' · ' + up.meta.n + ' pelanggan', '');
+  return { ok: true, paket: paketTerbaru_() };
+}
+function pkgChunk_(q) {
+  const a = sesiAktif_(q.token);
+  if (!a) return { ok: false, revoked: true, msg: 'Akses di HP ini sudah tidak berlaku.' };
+  const sp = SpreadsheetApp.getActive().getSheetByName('PAKET');
+  if (!sp) return { ok: false, msg: 'Belum ada data yang diterbitkan.' };
+  const v = sp.getDataRange().getValues().slice(1);
+  for (let r = 0; r < v.length; r++) {
+    if (Number(v[r][0]) === Number(q.ver) && /^(AKTIF|LAMA)$/i.test(String(v[r][6]))) {
+      const ids = String(v[r][7]).split(','), i = Number(q.i);
+      if (!(i >= 0 && i < ids.length)) return { ok: false, msg: 'Potongan tidak ada.' };
+      if (i === 0) catat_(a.u.id, a.u.nama, q.deviceId, 'UNDUH_DATA', '', 'versi ' + q.ver, '');
+      return { ok: true, i: i, total: ids.length, data: DriveApp.getFileById(ids[i]).getBlob().getDataAsString() };
+    }
+  }
+  return { ok: false, msg: 'Versi data tidak tersedia lagi. Sinkron ulang.' };
+}
+function paketTerbaru_() {
+  const s = SpreadsheetApp.getActive().getSheetByName('PAKET');
+  if (!s) return null;
+  const v = s.getDataRange().getValues();
+  for (let i = v.length - 1; i >= 1; i--) {
+    if (String(v[i][6]).toUpperCase() === 'AKTIF') {
+      const d = v[i][1] instanceof Date ? Utilities.formatDate(v[i][1], 'Asia/Jakarta', 'yyyy-MM-dd') : String(v[i][1]);
+      return { ver: Number(v[i][0]), date: d, n: Number(v[i][2]), sizeMb: Number(v[i][3]), parts: String(v[i][7]).split(',').length };
+    }
+  }
+  return null;
+}
+function shPaket_() {
+  const ss = SpreadsheetApp.getActive();
+  let s = ss.getSheetByName('PAKET');
+  if (!s) {
+    s = ss.insertSheet('PAKET');
+    s.appendRow(SH.PAKET); s.setFrozenRows(1);
+    s.getRange(1, 1, 1, SH.PAKET.length).setFontWeight('bold').setBackground('#10263b').setFontColor('#ffd200');
+    s.getRange('B:B').setNumberFormat('@');
+    s.setColumnWidth(8, 120);
+  }
+  return s;
+}
+function folderPaket_() {
+  const pr = PropertiesService.getScriptProperties(), id = pr.getProperty('FOLDER_PAKET');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
+  const ini = DriveApp.getFileById(SpreadsheetApp.getActive().getId()), ps = ini.getParents();
+  const induk = ps.hasNext() ? ps.next() : DriveApp.getRootFolder();
+  const f = induk.createFolder('GERCEP Paket (jangan dibagikan)');
+  pr.setProperty('FOLDER_PAKET', f.getId());
+  return f;
+}
+function hapusFile_(ids) {
+  String(ids || '').split(',').forEach(function (id) { if (id) { try { DriveApp.getFileById(id).setTrashed(true); } catch (e) {} } });
+}
+
 /* ===== Pembantu ===== */
 function paketSesi_(u, token) {
   let end = new Date(Date.now() + CFG.AKSES_HARI * 86400000);
@@ -253,7 +364,7 @@ function paketSesi_(u, token) {
   const keys = rows_('KUNCI')
     .filter(function (r) { return String(r[3]).toUpperCase() === 'AKTIF' && r[1]; })
     .map(function (r) { return { ver: Number(r[0]), key: String(r[1]) }; });
-  return { ok: true, token: token, id: u.id, nama: u.nama, peran: u.peran, berlakuSd: end.toISOString(), keys: keys };
+  return { ok: true, token: token, id: u.id, nama: u.nama, peran: u.peran, berlakuSd: end.toISOString(), keys: keys, paket: paketTerbaru_() };
 }
 function petugasDariBaris_(r) {
   return { id: String(r[P.ID]).trim(), nama: String(r[P.NAMA] || '').trim(), peran: String(r[P.PERAN] || 'PETUGAS').trim().toUpperCase(),
